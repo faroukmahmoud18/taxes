@@ -1,1 +1,11 @@
-<h1>Edit Subscription Plan</h1><form method='POST' action='{{ route('admin.subscription-plans.update', $subscription_plan) }}'>@csrf @method('PUT')<div>Name (JSON): <input type='text' name='name[en]' value='{{ $subscription_plan->getTranslation('name', 'en', false) }}'><input type='text' name='name[de]' value='{{ $subscription_plan->getTranslation('name', 'de', false) }}'><input type='text' name='name[ar]' value='{{ $subscription_plan->getTranslation('name', 'ar', false) }}'></div><div>Price: <input type='text' name='price' value='{{ $subscription_plan->price }}'></div><div>Features (JSON): <textarea name='features[en]'>{{ $subscription_plan->getTranslation('features', 'en', false) }}</textarea><textarea name='features[de]'>{{ $subscription_plan->getTranslation('features', 'de', false) }}</textarea><textarea name='features[ar]'>{{ $subscription_plan->getTranslation('features', 'ar', false) }}</textarea></div><div>PayPal Plan ID: <input type='text' name='paypal_plan_id' value='{{ $subscription_plan->paypal_plan_id }}'></div><button type='submit'>Update</button></form>
+@extends('layouts.app')
+
+@section('content')
+<div class="container">
+    <h1>Edit Subscription Plan: {{ $subscription_plan->getTranslation('name', app()->getLocale(), false) }}</h1>
+    <form method="POST" action="{{ route('admin.subscription-plans.update', $subscription_plan) }}">
+        @method('PUT')
+        @include('admin.subscription-plans._form', ['subscription_plan' => $subscription_plan])
+    </form>
+</div>
+@endsection

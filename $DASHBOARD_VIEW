@@ -1,0 +1,28 @@
+
+$MARKER
+
+
+            <div class="mt-6 bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6 text-gray-900 dark:text-gray-100">
+                    <h3 class="text-lg font-semibold mb-4">{{ __("My Subscription") }}</h3>
+                    @php
+                        $activeSub = Auth::user()->loadMissing('activeSubscription.subscriptionPlan')->activeSubscription;
+                    @endphp
+
+                    @if ($activeSub && $activeSub->subscriptionPlan)
+                        <p><strong>{{ __("Plan") }}:</strong> {{ $activeSub->subscriptionPlan->getTranslation("name", app()->getLocale(), false) }}</p>
+                        <p><strong>{{ __("Status") }}:</strong> <span class="capitalize">{{ str_replace("_", " ", $activeSub->status) }}</span></p>
+                        @if ($activeSub->ends_at)
+                            <p><strong>{{ __("Current period ends on") }}:</strong> {{ $activeSub->ends_at->format("F j, Y") }}</p>
+                        @endif
+                        @if ($activeSub->cancelled_at)
+                            <p class="text-red-600 dark:text-red-400"><strong>{{ __("Subscription cancelled, access valid until") }}:</strong> {{ $activeSub->ends_at ? $activeSub->ends_at->format("F j, Y") : __("End of cycle") }}</p>
+                        @else
+                            <p class="mt-2"><small>{{ __("To cancel your subscription, please manage it through your PayPal account directly for now, or contact support.") }}</small></p>
+                        @endif
+                    @else
+                        <p>{{ __("You do not have an active subscription.") }}</p>
+                        <a href="{{ route("subscriptions.index") }}" class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">{{ __("View Plans") }}</a>
+                    @endif
+                </div>
+            </div>
