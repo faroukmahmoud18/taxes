@@ -1,1 +1,10 @@
-<h1>Create Subscription Plan</h1><form method='POST' action='{{ route('admin.subscription-plans.store') }}'>@csrf <div>Name (JSON): <input type='text' name='name[en]' placeholder='English Name'><input type='text' name='name[de]' placeholder='German Name'><input type='text' name='name[ar]' placeholder='Arabic Name'></div><div>Price: <input type='text' name='price'></div><div>Features (JSON): <textarea name='features[en]' placeholder='English Features'></textarea><textarea name='features[de]' placeholder='German Features'></textarea><textarea name='features[ar]' placeholder='Arabic Features'></textarea></div><div>PayPal Plan ID: <input type='text' name='paypal_plan_id'></div><button type='submit'>Save</button></form>
+@extends('layouts.app')
+
+@section('content')
+<div class="container">
+    <h1>Create Subscription Plan</h1>
+    <form method="POST" action="{{ route('admin.subscription-plans.store') }}">
+        @include('admin.subscription-plans._form')
+    </form>
+</div>
+@endsection

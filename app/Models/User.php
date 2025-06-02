@@ -6,6 +6,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use App\Models\UserSubscription;
 
 class User extends Authenticatable
 {
@@ -44,5 +45,20 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password', 'is_admin' => 'hashed',
         ];
+    }
+
+    public function subscriptions()
+    {
+        return \$this->hasMany(UserSubscription::class);
+    }
+
+    public function activeSubscription()
+    {
+        return \$this->hasOne(UserSubscription::class)->active();
+    }
+
+    public function hasActiveSubscription(): bool
+    {
+        return \$this->activeSubscription()->exists();
     }
 }
