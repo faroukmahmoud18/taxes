@@ -50,8 +50,40 @@ Route::post('/paypal/webhook', [PayPalWebhookController::class, 'handle'])->name
 
 // ADMIN STATIC PAGES ROUTES START
 use App\Http\Controllers\Admin\StaticPageController; // Ensure this is not duplicated if already present
+use App\Http\Controllers\Admin\TaxConfigurationController;
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::resource('static-pages', StaticPageController::class)->parameters(['static-pages' => 'staticPage:slug']);
 });
 // ADMIN STATIC PAGES ROUTES END
+// ADMIN TAX CONFIGURATION ROUTE START
+    Route::get('tax-configuration', [TaxConfigurationController::class, 'index'])->name('tax-configuration.index');
+    Route::post('tax-configuration/clear-cache', [TaxConfigurationController::class, 'clearConfigCache'])->name('tax-configuration.clear-cache');
+// ADMIN TAX CONFIGURATION ROUTE END
+
+// FRONTEND STATIC PAGE ROUTE START
+use App\Http\Controllers\PageController; // Ensure this is not duplicated if already present globally or in another block
+Route::get('/pages/{staticPage:slug}', [PageController::class, 'show'])->name('pages.show');
+// FRONTEND STATIC PAGE ROUTE END
+
+// USER EXPENSE MANAGEMENT ROUTES START
+use App\Http\Controllers\ExpenseController; // Ensure this is not duplicated if already present
+
+Route::middleware(['auth'])->prefix('expenses')->name('expenses.')->group(function () {
+    Route::get('/', [ExpenseController::class, 'index'])->name('index');
+    Route::get('/create', [ExpenseController::class, 'create'])->name('create');
+    Route::post('/', [ExpenseController::class, 'store'])->name('store');
+    Route::get('/{expense}', [ExpenseController::class, 'show'])->name('show'); 
+    Route::get('/{expense}/edit', [ExpenseController::class, 'edit'])->name('edit');
+    Route::put('/{expense}', [ExpenseController::class, 'update'])->name('update');
+    Route::delete('/{expense}', [ExpenseController::class, 'destroy'])->name('destroy');
+});
+    Route::get('/report', [ExpenseController::class, 'report'])->name('report');
+// EXPENSE REPORT ROUTE
+// USER EXPENSE MANAGEMENT ROUTES END
+
+// TAX ESTIMATION ROUTES START
+use App\Http\Controllers\TaxEstimationController;
+Route::get('/tax-estimation', [TaxEstimationController::class, 'showForm'])->name('tax-estimation.show')->middleware('auth');
+Route::post('/tax-estimation/calculate', [TaxEstimationController::class, 'calculate'])->name('tax-estimation.calculate')->middleware('auth');
+// TAX ESTIMATION ROUTES END

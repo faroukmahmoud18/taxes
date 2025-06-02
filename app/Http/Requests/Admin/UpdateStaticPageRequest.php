@@ -27,7 +27,7 @@ class UpdateStaticPageRequest extends FormRequest
     public function rules(): array
     {
         // $this->route('static_page') will be the StaticPage model instance
-        $pageId = $this->route('static_page')->id;
+        $pageId = $this->route('static_page')->id; 
 
         return [
             'title.en' => 'required|string|max:255',
@@ -46,7 +46,7 @@ class UpdateStaticPageRequest extends FormRequest
             'meta_description.ar' => 'nullable|string|max:255',
         ];
     }
-
+    
     public function messages(): array
     {
         return [

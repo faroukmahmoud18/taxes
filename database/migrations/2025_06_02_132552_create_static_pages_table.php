@@ -11,12 +11,12 @@ return new class extends Migration
         if (!Schema::hasTable('static_pages')) {
             Schema::create('static_pages', function (Blueprint $table) {
                 $table->id();
-                $table->json('title');
-                $table->string('slug')->unique();
-                $table->json('content');
+                $table->json('title'); 
+                $table->string('slug')->unique(); 
+                $table->json('content'); 
                 $table->boolean('is_published')->default(false);
-                $table->json('meta_keywords')->nullable();
-                $table->json('meta_description')->nullable();
+                $table->json('meta_keywords')->nullable(); 
+                $table->json('meta_description')->nullable(); 
                 $table->timestamps();
             });
         }

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use App\Models\UserSubscription;
+use App\Models\Expense;
 
 class User extends Authenticatable
 {
@@ -60,5 +61,10 @@ class User extends Authenticatable
     public function hasActiveSubscription(): bool
     {
         return \$this->activeSubscription()->exists();
+    }
+
+    public function expenses()
+    {
+        return \$this->hasMany(Expense::class);
     }
 }
