@@ -1,0 +1,82 @@
+<?php
+
+// tax_rates.php
+// All values are illustrative and MUST be updated with official 2025 figures.
+// Currency is EUR.
+
+return [
+    'germany' => [
+        'year' => 2025,
+        'income_tax' => [
+            // For 'single' status (and basis for 'married_joint' via Splittingverfahren)
+            // 'brackets' define points where the calculation formula changes.
+            // Simplified German progressive formula: Y = (a * (X - b) + c) * (X - b) + d
+            // Where X is taxable income. Different formulas apply in different zones.
+            // For simplicity here, we use a bracket system: { upto_income, marginal_rate, base_tax_on_previous_brackets }
+            // This means income *up to* 'upto_income' has this 'marginal_rate' applied to the portion *within this bracket segment*.
+            // 'base_tax_on_previous_brackets' is the total tax from all preceding brackets.
+            'single_brackets' => [
+                // Example for 2024 (values must be updated for 2025 from official sources)
+                // Grundfreibetrag (tax-free allowance)
+                ['upto_income' => 11604,  'marginal_rate' => 0.00, 'base_tax_on_previous_brackets' => 0],
+                // Zone 1 (Progressive Zone 1: linear increase from 14% to 24%)
+                // For income X from 11605 to 17005: Tax approx = (933.65 * y + 1400) * y where y = (X - 11604)/10000
+                // This is too complex for simple brackets. We will use effective marginal rates for segments.
+                // Let's use a simplified bracket structure: {threshold, rate_for_income_above_threshold, fixed_tax_amount_below_threshold}
+                // This means: income between previous_threshold and current_threshold is taxed at previous_rate.
+                // This still requires careful calculation. The German system is a formula, not simple brackets.
+                //
+                // A common representation for calculation:
+                // Bracket Start | Bracket End | Marginal Rate | Base tax for income fully filling *previous* brackets
+                // 0             | 11604       | 0%            | 0
+                // 11605         | 17005       | ~14-24% (prog)| 0 (on 11604)
+                // 17006         | 66760       | ~24-42% (prog)| Tax on 17005
+                // 66761         | 277825      | 42%           | Tax on 66760
+                // 277826        | upwards     | 45%           | Tax on 277825
+                //
+                // For this script, we'll use a simplified structure that our TaxService will interpret:
+                // Each item: [upper_limit_of_this_bracket, marginal_rate_within_this_bracket, fixed_tax_amount_for_income_up_to_start_of_this_bracket]
+                // This is still not quite right for the German formula. A direct formula implementation is better.
+                // For now, using the placeholder structure provided in the TaxService:
+                // ['limit' => START_OF_BRACKET_WHERE_THIS_RATE_APPLIES, 'rate' => MARGINAL_RATE_FOR_INCOME_ABOVE_THIS_LIMIT, 'base_tax' => TOTAL_TAX_UP_TO_THIS_LIMIT]
+                 ['limit' => 0,       'rate' => 0.0000, 'base_tax' => 0],      // Tax-free basic allowance (Grundfreibetrag)
+                 ['limit' => 11604,   'rate' => 0.1400, 'base_tax' => 0],      // Income from 11605 up to next limit taxed at progressive rate starting at 14%
+                                                                              // This structure implies: Tax = base_tax + (Income - limit) * rate. This is for a specific type of bracket system.
+                                                                              // The German system is more complex: Tax = formula(Income).
+                                                                              // The code will need to implement the actual German progressive formulas.
+                                                                              // For now, these are placeholders for such formulas if broken into segments.
+                 ['limit' => 17005,   'rate' => 0.2397, 'base_tax' => 770.28],   // Approx values for 2024, MUST BE VERIFIED FOR 2025
+                 ['limit' => 66760,   'rate' => 0.4200, 'base_tax' => 10997.00], // Approx values for 2024
+                 ['limit' => 277825,  'rate' => 0.4500, 'base_tax' => 99197.00], // Approx values for 2024
+            ],
+            'solidarity_surcharge' => [
+                // Solidarity surcharge is 5.5% of the income tax, if income tax exceeds certain thresholds.
+                // Thresholds differ for single/married. For 2024 (single): no surcharge if tax <= ~18130 EUR. Full rate if tax > ~34000 EUR. Sliding scale in between.
+                // Simplified:
+                'threshold_single_no_surcharge' => 18130, // Income tax amount, not income
+                'threshold_single_full_surcharge' => 34000, // Income tax amount
+                'rate' => 0.055, 
+            ],
+            'church_tax' => [
+                'rate' => 0.09, // 8% or 9% depending on the state (of the calculated income tax)
+            ],
+        ],
+        'vat' => [
+            'standard' => 0.19, 
+            'reduced' => 0.07,  
+        ],
+        'social_security' => [
+            // Rates are per employee/employer, so typically half of these for employee share
+            // These are total rates for 2024, for illustration. User's share is roughly half.
+            // Ceilings (Beitragsbemessungsgrenze) apply.
+            'health_insurance_general_rate' => 0.146, // plus avg. Zusatzbeitrag ~1.7% in 2024
+            'pension_insurance_rate' => 0.186,
+            'unemployment_insurance_rate' => 0.026,
+            'long_term_care_insurance_rate' => 0.034, // +0.6% for childless over 23 (total 4.0%)
+                                                      // Saxony has different employer/employee split for care insurance.
+            // Example Ceilings (West Germany, 2024, annual)
+            'pension_unemployment_ceiling_west' => 90600, // (7550 EUR/month * 12)
+            'health_long_term_care_ceiling' => 62100,      // (5175 EUR/month * 12)
+        ],
+    ],
+];

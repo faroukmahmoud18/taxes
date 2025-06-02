@@ -5,10 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use App\Models\UserSubscription;
-use App\Models\SubscriptionPlan;
-use App\Models\User;
-use Carbon\Carbon;
-use PayPalHttp\HttpException;
+use App\Models\SubscriptionPlan; 
+use App\Models\User; 
+use Carbon\Carbon; 
+use PayPalHttp\HttpException; 
 
 class PayPalWebhookController extends Controller
 {
@@ -74,10 +74,10 @@ class PayPalWebhookController extends Controller
         $webhookId = config('services.paypal.webhook_id');
         if (empty($webhookId)) {
             Log::error('PayPal Webhook: Webhook ID (services.paypal.webhook_id) is not configured. Signature verification skipped (FAIL).');
-            return false;
+            return false; 
         }
         Log::warning("PayPal Webhook: Conceptual signature verification. In production, implement call to /v1/notifications/verify-webhook-signature API. Webhook ID: {$webhookId}");
-        return true;
+        return true; 
     }
 
     protected function handleSubscriptionActivated(array $resource)
@@ -118,7 +118,7 @@ class PayPalWebhookController extends Controller
             Log::warning("Webhook 'BILLING.SUBSCRIPTION.CANCELLED': No local subscription found for PayPal ID: {$paypalSubscriptionId}.");
         }
     }
-
+    
     protected function handleSubscriptionExpired(array $resource)
     {
         $paypalSubscriptionId = $resource['id'] ?? null;
@@ -154,16 +154,16 @@ class PayPalWebhookController extends Controller
 
     protected function handlePaymentSaleCompleted(array $resource)
     {
-        $paypalSubscriptionId = $resource['billing_agreement_id'] ?? null;
+        $paypalSubscriptionId = $resource['billing_agreement_id'] ?? null; 
         if (!$paypalSubscriptionId) { Log::warning("Webhook 'PAYMENT.SALE.COMPLETED': Missing billing_agreement_id.", ['resource' => $resource]); return; }
 
         $subscription = UserSubscription::where('paypal_subscription_id', $paypalSubscriptionId)->first();
         if ($subscription) {
-            $subscription->status = 'active';
+            $subscription->status = 'active'; 
             Log::info("Webhook 'PAYMENT.SALE.COMPLETED': Payment received for Subscription {$paypalSubscriptionId}, User ID: {$subscription->user_id}. 'ends_at' should be updated based on new billing cycle from PayPal.");
             $newPayload = $subscription->paypal_payload ?? [];
-            $newPayload['event_payment_sale_completed_'] = $newPayload['event_payment_sale_completed_'] ?? [];
-            $newPayload['event_payment_sale_completed_'][] = $resource;
+            $newPayload['event_payment_sale_completed_'] = $newPayload['event_payment_sale_completed_'] ?? []; 
+            $newPayload['event_payment_sale_completed_'][] = $resource; 
             $subscription->paypal_payload = $newPayload;
             $subscription->save();
         } else {
@@ -177,9 +177,9 @@ class PayPalWebhookController extends Controller
         if (!$paypalSubscriptionId) { Log::warning("Webhook {$eventType}: Missing billing_agreement_id.", ['resource' => $resource]); return; }
         $subscription = UserSubscription::where('paypal_subscription_id', $paypalSubscriptionId)->first();
         if ($subscription) {
-            $newStatus = 'payment_issue';
+            $newStatus = 'payment_issue'; 
             if (strtoupper($eventType) === 'PAYMENT.SALE.DENIED') {
-                $newStatus = 'past_due';
+                $newStatus = 'past_due'; 
             }
             $subscription->status = $newStatus;
             $newPayload = $subscription->paypal_payload ?? [];

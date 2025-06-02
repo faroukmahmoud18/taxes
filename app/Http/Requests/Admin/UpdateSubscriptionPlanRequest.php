@@ -6,7 +6,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 // It's good practice to import the model if you type-hint it or use its properties for rules,
 // but for $this->route('subscription_plan')->id, it's not strictly necessary here.
-// use App\Models\SubscriptionPlan;
+// use App\Models\SubscriptionPlan; 
 
 class UpdateSubscriptionPlanRequest extends FormRequest
 {
@@ -27,7 +27,7 @@ class UpdateSubscriptionPlanRequest extends FormRequest
     {
         // $this->route('subscription_plan') will resolve to the SubscriptionPlan model instance
         // due to implicit route model binding.
-        $planId = $this->route('subscription_plan')->id;
+        $planId = $this->route('subscription_plan')->id; 
 
         return [
             'name.en' => 'required|string|max:255',

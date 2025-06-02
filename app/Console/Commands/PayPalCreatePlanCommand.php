@@ -66,7 +66,7 @@ class PayPalCreatePlanCommand extends Command
         }
 
         $localPlanId = $this->argument('local_plan_id');
-        $providedPayPalProductId = $this->option('product_id');
+        $providedPayPalProductId = $this->option('product_id'); 
         $forceUpdate = $this->option('force_update_on_paypal');
 
 
@@ -95,37 +95,37 @@ class PayPalCreatePlanCommand extends Command
         $request = new PlansCreateRequest();
         $request->body = [
             'product_id' => $providedPayPalProductId,
-            'name' => $localPlan->getTranslation('name', 'en'),
-            'description' => $localPlan->getTranslation('features', 'en', false) ?: $localPlan->getTranslation('name', 'en'),
-            'status' => 'ACTIVE',
+            'name' => $localPlan->getTranslation('name', 'en'), 
+            'description' => $localPlan->getTranslation('features', 'en', false) ?: $localPlan->getTranslation('name', 'en'), 
+            'status' => 'ACTIVE', 
             'billing_cycles' => [
                 [
                     'frequency' => [
-                        'interval_unit' => 'MONTH',
+                        'interval_unit' => 'MONTH', 
                         'interval_count' => 1,
                     ],
-                    'tenure_type' => 'REGULAR',
-                    'sequence' => 1,
-                    'total_cycles' => 0,
+                    'tenure_type' => 'REGULAR', 
+                    'sequence' => 1, 
+                    'total_cycles' => 0, 
                     'pricing_scheme' => [
                         'fixed_price' => [
-                            'value' => number_format($localPlan->price, 2, '.', ''),
-                            'currency_code' => 'EUR',
+                            'value' => number_format($localPlan->price, 2, '.', ''), 
+                            'currency_code' => 'EUR', 
                         ],
                     ],
                 ],
             ],
             'payment_preferences' => [
                 'auto_bill_outstanding' => true,
-                'setup_fee_failure_action' => 'CONTINUE',
-                'payment_failure_threshold' => 3,
+                'setup_fee_failure_action' => 'CONTINUE', 
+                'payment_failure_threshold' => 3, 
             ],
         ];
 
         try {
             $this->info("Creating plan on PayPal...");
             $response = $this->payPalClient->execute($request);
-
+            
             if (in_array($response->statusCode, [200, 201])) { // 200 OK or 201 Created
                 $payPalPlanId = $response->result->id;
                 $this->info("PayPal plan created/updated successfully. PayPal Plan ID: {$payPalPlanId}");

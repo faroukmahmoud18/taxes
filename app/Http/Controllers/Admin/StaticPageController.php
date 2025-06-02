@@ -26,7 +26,7 @@ class StaticPageController extends Controller
         $page = new StaticPage();
         $page->slug = $validatedData['slug'];
         // Handle boolean is_published (checkboxes are not sent if unchecked)
-        $page->is_published = $request->has('is_published');
+        $page->is_published = $request->has('is_published'); 
 
         foreach (['en', 'de', 'ar'] as $locale) {
             $page->setTranslation('title', $locale, $validatedData['title'][$locale]);
@@ -42,7 +42,7 @@ class StaticPageController extends Controller
         return redirect()->route('admin.static-pages.index')->with('success', 'Static page created successfully.');
     }
 
-    public function show(StaticPage $staticPage)
+    public function show(StaticPage $staticPage) 
     {
         return view('admin.static-pages.show', compact('staticPage'));
     }
@@ -61,7 +61,7 @@ class StaticPageController extends Controller
         foreach (['en', 'de', 'ar'] as $locale) {
             $staticPage->setTranslation('title', $locale, $validatedData['title'][$locale]);
             $staticPage->setTranslation('content', $locale, $validatedData['content'][$locale]);
-
+            
             $staticPage->setTranslation('meta_keywords', $locale, $validatedData['meta_keywords'][$locale] ?? null);
             $staticPage->setTranslation('meta_description', $locale, $validatedData['meta_description'][$locale] ?? null);
         }

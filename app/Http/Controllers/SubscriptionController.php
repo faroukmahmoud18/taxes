@@ -31,9 +31,9 @@ class SubscriptionController extends Controller
         try {
             $config = config('services.paypal');
             // Added more specific checks for keys to prevent errors if config is partially set
-            if (!isset($config['mode']) ||
-                !isset($config[$config['mode']]) ||
-                !isset($config[$config['mode']]['client_id']) ||
+            if (!isset($config['mode']) || 
+                !isset($config[$config['mode']]) || 
+                !isset($config[$config['mode']]['client_id']) || 
                 !isset($config[$config['mode']]['client_secret'])) {
                 Log::error('PayPal configuration missing or incomplete in config/services.php or .env');
                 throw new \Exception('PayPal configuration is missing or incomplete.');
@@ -55,7 +55,7 @@ class SubscriptionController extends Controller
             Log::info("PayPal client initialized for mode: {$environmentMode}");
         } catch (\Exception $e) {
             Log::error('PayPal Client Initialization Error: ' . $e->getMessage());
-            $this->payPalClient = null;
+            $this->payPalClient = null; 
         }
     }
 
@@ -79,7 +79,7 @@ class SubscriptionController extends Controller
 
         $user = Auth::user();
 
-        if ($user->hasActiveSubscription()) {
+        if ($user->hasActiveSubscription()) { 
              Log::info("User ID: {$user->id} attempted to subscribe to plan ID {$plan->id} but already has an active subscription.");
              return redirect()->route('dashboard')->with('info', 'You already have an active subscription.');
         }
@@ -89,14 +89,14 @@ class SubscriptionController extends Controller
             'plan_id' => $plan->paypal_plan_id,
             'subscriber' => [
                 'name' => [
-                    'given_name' => $user->name,
+                    'given_name' => $user->name, 
                 ],
                 'email_address' => $user->email,
             ],
             'application_context' => [
                 'brand_name' => config('app.name', 'Laravel SaaS'),
                 'locale' => str_replace('_', '-', app()->getLocale()) . '-' . strtoupper(str_replace('_', '-', app()->getLocale())), // e.g., en-US, de-DE
-                'shipping_preference' => 'NO_SHIPPING',
+                'shipping_preference' => 'NO_SHIPPING', 
                 'user_action' => 'SUBSCRIBE_NOW',
                 'return_url' => route('subscriptions.success'),
                 'cancel_url' => route('subscriptions.cancel'),
@@ -114,12 +114,12 @@ class SubscriptionController extends Controller
                     ['user_id' => $user->id, 'paypal_subscription_id' => $payPalSubscriptionId], // Check by paypal_subscription_id too
                     [
                         'subscription_plan_id' => $plan->id,
-                        'status' => 'pending_approval',
-                        'starts_at' => now(),
-                        'paypal_payload' => $response->result,
+                        'status' => 'pending_approval', 
+                        'starts_at' => now(), 
+                        'paypal_payload' => $response->result, 
                     ]
                 );
-
+                
                 Log::info("Local subscription record created/updated for User ID: {$user->id} with PayPal Subscription ID: {$payPalSubscriptionId}. Status: pending_approval.");
 
                 foreach ($response->result->links as $link) {
@@ -136,7 +136,7 @@ class SubscriptionController extends Controller
             }
         } catch (HttpException $e) {
             Log::error("PayPal API HttpException for User ID: {$user->id}: " . $e->getMessage() . " Status Code: " . $e->statusCode);
-            $errorBody = json_decode($e->getMessage());
+            $errorBody = json_decode($e->getMessage()); 
             if (json_last_error() === JSON_ERROR_NONE && isset($errorBody->details)) {
                 foreach($errorBody->details as $detail) {
                     Log::error("Detail: {$detail->issue} - {$detail->description}");
@@ -154,7 +154,7 @@ class SubscriptionController extends Controller
     public function success(Request $request)
     {
         $user = Auth::user();
-        $token = $request->query('token');
+        $token = $request->query('token'); 
         $payPalSubscriptionId = $request->query('subscription_id');
 
         Log::info("User ID: {$user->id} returned from PayPal successfully. Token: {$token}, PayPal Subscription ID: {$payPalSubscriptionId}");
@@ -163,14 +163,14 @@ class SubscriptionController extends Controller
             Log::warning("User ID: {$user->id} returned to success URL without a subscription_id.");
             return redirect()->route('subscriptions.index')->with('error', 'Subscription confirmation from PayPal is missing an ID. Please check your dashboard or contact support.');
         }
-
+        
         $localSub = UserSubscription::where('user_id', $user->id)
                                   ->where('paypal_subscription_id', $payPalSubscriptionId)
                                   ->first();
 
         if ($localSub) {
             if($localSub->status === 'pending_approval') {
-                 $localSub->status = 'pending_webhook_confirmation';
+                 $localSub->status = 'pending_webhook_confirmation'; 
                  $localSub->save();
                  Log::info("User ID: {$user->id}, Local Subscription ID: {$localSub->id} status updated to {$localSub->status} after PayPal approval redirect.");
             }

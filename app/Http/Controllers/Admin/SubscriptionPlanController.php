@@ -48,7 +48,7 @@ class SubscriptionPlanController extends Controller
             $plan->setTranslation('features', 'de', $validatedData['features']['de'] ?? '');
             $plan->setTranslation('features', 'ar', $validatedData['features']['ar'] ?? '');
         }
-
+        
         $plan->save();
 
         return redirect()->route('admin.subscription-plans.index')->with('success', 'Subscription plan created successfully.');
@@ -76,14 +76,14 @@ class SubscriptionPlanController extends Controller
     public function update(UpdateSubscriptionPlanRequest $request, SubscriptionPlan $subscriptionPlan) // Changed to Form Request
     {
         $validatedData = $request->validated();
-
+        
         $subscriptionPlan->price = $validatedData['price'];
         $subscriptionPlan->paypal_plan_id = $validatedData['paypal_plan_id'] ?? null;
 
         $subscriptionPlan->setTranslation('name', 'en', $validatedData['name']['en']);
         $subscriptionPlan->setTranslation('name', 'de', $validatedData['name']['de']);
         $subscriptionPlan->setTranslation('name', 'ar', $validatedData['name']['ar']);
-
+        
         if (isset($validatedData['features'])) {
             $subscriptionPlan->setTranslation('features', 'en', $validatedData['features']['en'] ?? '');
             $subscriptionPlan->setTranslation('features', 'de', $validatedData['features']['de'] ?? '');

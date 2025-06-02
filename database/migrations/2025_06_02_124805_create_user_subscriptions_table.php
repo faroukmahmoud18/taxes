@@ -28,7 +28,7 @@ return new class extends Migration
                     $table->string('paypal_subscription_id')->unique()->nullable()->after('subscription_plan_id');
                 }
                 if (!Schema::hasColumn('user_subscriptions', 'status')) {
-                    $table->string('status')->default('pending')->after('paypal_subscription_id');
+                    $table->string('status')->default('pending')->after('paypal_subscription_id'); 
                 }
                 if (!Schema::hasColumn('user_subscriptions', 'starts_at')) {
                     $table->timestamp('starts_at')->nullable()->after('status');

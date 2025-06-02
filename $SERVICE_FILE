@@ -1,0 +1,142 @@
+<?php
+
+namespace App\Services;
+
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Log;
+use Carbon\Carbon; // Added for date manipulation
+
+class TaxService
+{
+    protected $taxConfig;
+    protected $incomeTaxBrackets; // Specifically for income tax
+
+    public function __construct()
+    {
+        $this->taxConfig = Config::get('tax_rates.germany');
+        if (!$this->taxConfig || ($this->taxConfig['year'] ?? 0) !== 2025) {
+            Log::warning('Tax configuration for Germany 2025 not found or incorrect year. Using fallback.', ['loaded_config' => $this->taxConfig]);
+            $this->taxConfig = $this->getDefaultFallbackConfig();
+        }
+        // Assuming 'single_brackets' holds the primary bracket info as discussed in config
+        $this->incomeTaxBrackets = $this->taxConfig['income_tax']['single_brackets'] ?? [];
+    }
+
+    /**
+     * Calculates estimated German income tax based on the progressive formula structure.
+     * This method needs to implement the actual German tax formulas for each zone.
+     * The current bracket structure in config/tax_rates.php is a simplified placeholder
+     * and the logic here is a simplified progressive calculation based on that structure.
+     * THIS IS ILLUSTRATIVE AND NOT ACCURATE FOR OFFICIAL GERMAN TAX CALCULATION.
+     */
+    private function calculateProgressiveIncomeTax(float $income): float
+    {
+        // This is a placeholder for the complex German tax formula.
+        // The brackets in config are simplified: ['limit' => START_OF_BRACKET, 'rate' => MARGINAL_RATE_ABOVE_LIMIT, 'base_tax' => TAX_UP_TO_LIMIT]
+        // This means: Tax = base_tax_for_the_bracket_income_falls_into + (Income - start_of_that_bracket) * marginal_rate_of_that_bracket
+
+        $tax = 0.0;
+        $lastLimit = 0;
+        $foundBracket = false;
+
+        foreach ($this->incomeTaxBrackets as $bracket) {
+            if ($income <= $bracket['limit']) {
+                // This interpretation assumes 'limit' is the END of the current slab, and 'rate' applies to (current_limit - previous_limit)
+                // This is different from the 'base_tax + (Income - limit) * rate' structure.
+                // Let's use the structure: Tax = base_tax_from_bracket_below + (income_in_this_bracket_segment * rate_of_this_segment)
+                // The config structure ['limit', 'rate', 'base_tax'] implies 'limit' is the threshold where 'rate' starts to apply on income *above* it,
+                // and 'base_tax' is the tax accumulated *up to* that 'limit'.
+                
+                // Example: Bracket {limit: 11604, rate: 0.14, base_tax: 0}
+                // If income is 15000:
+                // Tax = base_tax_of_11604_bracket (which is 0) + (15000 - 11604) * 0.14 (rate of 11604_bracket)
+                // This requires finding the highest bracket whose 'limit' is less than income.
+
+                // Corrected logic based on ['limit' => START_OF_BRACKET_WHERE_THIS_RATE_APPLIES, 'rate' => MARGINAL_RATE_FOR_INCOME_ABOVE_THIS_LIMIT, 'base_tax' => TOTAL_TAX_UP_TO_THIS_LIMIT]
+                $targetBracket = null; 
+                foreach (array_reverse($this->incomeTaxBrackets) as $b) { // Iterate from highest to lowest
+                    if ($income > $b['limit']) {
+                        $targetBracket = $b;
+                        break;
+                    }
+                }
+                if ($targetBracket) {
+                    $tax = $targetBracket['base_tax'] + ($income - $targetBracket['limit']) * $targetBracket['rate'];
+                } else {
+                    $tax = 0; // Below first bracket's limit (likely tax-free amount)
+                }
+                $foundBracket = true;
+                break;
+            }
+        }
+         // If income is above all defined limits, use the last bracket's rate for the amount exceeding the last limit
+        if (!$foundBracket && !empty($this->incomeTaxBrackets)) {
+            $lastBracket = end($this->incomeTaxBrackets);
+            $tax = $lastBracket['base_tax'] + ($income - $lastBracket['limit']) * $lastBracket['rate'];
+        }
+
+        return max(0, round($tax, 2));
+    }
+
+    public function calculateEstimatedIncomeTax(float $annualTaxableIncome, string $maritalStatus = 'single', bool $isChurchMember = false): array
+    {
+        if (empty($this->incomeTaxBrackets)) {
+            Log::error('Income tax brackets missing in tax configuration.');
+            return ['income_tax' => 0, 'solidarity_surcharge' => 0, 'church_tax' => 0, 'total_tax' => 0, 'error' => 'Tax brackets not configured.'];
+        }
+
+        $incomeForTaxCalc = $annualTaxableIncome;
+        if ($maritalStatus === 'married_joint') {
+            $incomeForTaxCalc /= 2;
+        }
+
+        $calculatedTaxSingleOrHalf = $this->calculateProgressiveIncomeTax($incomeForTaxCalc);
+        $finalIncomeTax = ($maritalStatus === 'married_joint') ? ($calculatedTaxSingleOrHalf * 2) : $calculatedTaxSingleOrHalf;
+
+        $solidaritySurcharge = 0;
+        $soliConfig = $this->taxConfig['income_tax']['solidarity_surcharge'] ?? null;
+        if ($soliConfig && $finalIncomeTax > $soliConfig['threshold_single_no_surcharge']) { // Simplified: using single threshold for now
+            // Proper calculation involves a sliding scale for Soli if tax is between no_surcharge and full_surcharge thresholds
+            if ($finalIncomeTax > $soliConfig['threshold_single_full_surcharge']) {
+                 $solidaritySurcharge = $finalIncomeTax * $soliConfig['rate'];
+            } else {
+                // Simplified sliding scale - this is NOT the official formula
+                // $taxOverMinThreshold = $finalIncomeTax - $soliConfig['threshold_single_no_surcharge'];
+                // $range = $soliConfig['threshold_single_full_surcharge'] - $soliConfig['threshold_single_no_surcharge'];
+                // $proportionalRate = ($taxOverMinThreshold / $range) * $soliConfig['rate'];
+                // $solidaritySurcharge = $finalIncomeTax * $proportionalRate; // This is not quite right. Soli is on tax.
+                // A more common simplification if between thresholds is a reduced effective rate or specific formula.
+                // For now, only apply full if above higher threshold.
+                 Log::info("Solidarity surcharge calculation in sliding zone not fully implemented for tax amount: {$finalIncomeTax}");
+            }
+        }
+        
+        $churchTax = 0;
+        $churchTaxConfig = $this->taxConfig['income_tax']['church_tax'] ?? null;
+        if ($isChurchMember && $churchTaxConfig && $finalIncomeTax > 0) {
+            $churchTax = $finalIncomeTax * $churchTaxConfig['rate'];
+        }
+
+        $totalTax = $finalIncomeTax + $solidaritySurcharge + $churchTax;
+
+        return [
+            'income_tax' => round($finalIncomeTax, 2),
+            'solidarity_surcharge' => round($solidaritySurcharge, 2),
+            'church_tax' => round($churchTax, 2),
+            'total_tax' => round($totalTax, 2),
+        ];
+    }
+    
+    private function getDefaultFallbackConfig() {
+        return [
+            'year' => 0,
+            'income_tax' => [
+                'single_brackets' => [['limit' => 0, 'rate' => 0, 'base_tax' => 0]],
+                'solidarity_surcharge' => ['rate' => 0, 'threshold_single_no_surcharge' => 999999, 'threshold_single_full_surcharge' => 999999 ],
+                'church_tax' => ['rate' => 0],
+            ],
+            'vat' => ['standard' => 0.19, 'reduced' => 0.07],
+            'social_security' => [], // Keep it simple
+        ];
+    }
+}
