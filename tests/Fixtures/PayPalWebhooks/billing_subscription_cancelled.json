@@ -1,0 +1,18 @@
+{
+    "id": "EVT-SAMPLE-CANCELLED",
+    "event_version": "1.0",
+    "create_time": "2024-01-16T11:00:00Z",
+    "resource_type": "subscription",
+    "event_type": "BILLING.SUBSCRIPTION.CANCELLED",
+    "summary": "Subscription cancelled",
+    "resource": {
+        "id": "I-PAYPALSUBID456",
+        "plan_id": "P-PAYPALPLANID789",
+        "status": "CANCELLED",
+        "status_update_time": "2024-01-16T10:55:00Z",
+        "subscriber": {
+            "email_address": "subscriber@example.com",
+            "payer_id": "PAYERIDXYZ"
+        }
+    }
+}

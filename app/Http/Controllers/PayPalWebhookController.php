@@ -29,7 +29,7 @@ class PayPalWebhookController extends Controller
 
         if (!$eventType || !$resource || !is_array($resource)) {
             Log::warning('PayPal Webhook: Missing event_type or resource, or resource is not an array.', $payload);
-            return response()->json(['status's' => 'error', 'message' => 'Invalid payload (missing event_type or resource)'], 400);
+            return response()->json(['status' => 'error', 'message' => 'Invalid payload (missing event_type or resource)'], 400);
         }
 
         Log::info("Processing PayPal Webhook event: {$eventType}");
@@ -61,8 +61,9 @@ class PayPalWebhookController extends Controller
             }
             return response()->json(['status' => 'success'], 200);
         } catch (\Exception $e) {
+            Log::critical('UNEXPECTED EXCEPTION IN WEBHOOK: ' . $e->getMessage() . ' AT ' . $e->getFile() . ':' . $e->getLine() . ' TRACE: ' . $e->getTraceAsString());
             Log::error("PayPal Webhook: Error processing event {$eventType}: " . $e->getMessage(), [
-                'exception_trace' => $e->getTraceAsString(),
+                'exception_trace' => $e->getTraceAsString(), // Keep original shorter trace for standard error log
                 'payload' => $payload
             ]);
             return response()->json(['status' => 'error', 'message' => 'Internal server error while processing webhook'], 500);
