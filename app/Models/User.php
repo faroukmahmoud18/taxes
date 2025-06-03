@@ -50,21 +50,21 @@ class User extends Authenticatable
 
     public function subscriptions()
     {
-        return \$this->hasMany(UserSubscription::class);
+        return $this->hasMany(UserSubscription::class);
     }
 
     public function activeSubscription()
     {
-        return \$this->hasOne(UserSubscription::class)->active();
+        return $this->hasOne(UserSubscription::class)->active();
     }
 
     public function hasActiveSubscription(): bool
     {
-        return \$this->activeSubscription()->exists();
+        return $this->activeSubscription()->exists();
     }
 
     public function expenses()
     {
-        return \$this->hasMany(Expense::class);
+        return $this->hasMany(Expense::class);
     }
 }
