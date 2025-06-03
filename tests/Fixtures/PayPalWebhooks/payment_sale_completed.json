@@ -1,0 +1,19 @@
+{
+    "id": "EVT-SAMPLE-PAYMENT-COMPLETED",
+    "event_version": "1.0",
+    "create_time": "2024-01-19T14:00:00Z",
+    "resource_type": "sale",
+    "event_type": "PAYMENT.SALE.COMPLETED",
+    "summary": "Payment completed for subscription",
+    "resource": {
+        "id": "SALEID123",
+        "billing_agreement_id": "I-PAYPALSUBIDFORPAYMENT",
+        "amount": {
+            "total": "19.99",
+            "currency": "USD"
+        },
+        "payment_mode": "INSTANT_TRANSFER",
+        "state": "completed",
+        "create_time": "2024-01-19T13:55:00Z"
+    }
+}

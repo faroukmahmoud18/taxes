@@ -1,0 +1,19 @@
+{
+    "id": "EVT-SAMPLE-PAYMENT-DENIED",
+    "event_version": "1.0",
+    "create_time": "2024-01-20T15:00:00Z",
+    "resource_type": "sale",
+    "event_type": "PAYMENT.SALE.DENIED",
+    "summary": "Payment denied for subscription",
+    "resource": {
+        "id": "SALEID456",
+        "billing_agreement_id": "I-PAYPALSUBIDFORPAYMENT",
+        "amount": {
+            "total": "19.99",
+            "currency": "USD"
+        },
+        "state": "denied",
+        "reason_code": "PAYER_ACCOUNT_RESTRICTED",
+        "create_time": "2024-01-20T14:55:00Z"
+    }
+}

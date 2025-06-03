@@ -1,0 +1,18 @@
+{
+    "id": "EVT-SAMPLE-SUSPENDED",
+    "event_version": "1.0",
+    "create_time": "2024-01-18T13:00:00Z",
+    "resource_type": "subscription",
+    "event_type": "BILLING.SUBSCRIPTION.SUSPENDED",
+    "summary": "Subscription suspended",
+    "resource": {
+        "id": "I-PAYPALSUBIDABC",
+        "plan_id": "P-PAYPALPLANIDEFG",
+        "status": "SUSPENDED",
+        "status_update_time": "2024-01-18T12:55:00Z",
+        "subscriber": {
+            "email_address": "subscriber@example.com",
+            "payer_id": "PAYERID456"
+        }
+    }
+}

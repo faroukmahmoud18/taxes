@@ -1,0 +1,22 @@
+{
+    "id": "EVT-SAMPLE-ACTIVATED",
+    "event_version": "1.0",
+    "create_time": "2024-01-15T10:00:00Z",
+    "resource_type": "subscription",
+    "event_type": "BILLING.SUBSCRIPTION.ACTIVATED",
+    "summary": "Subscription activated",
+    "resource": {
+        "id": "I-PAYPALSUBID123",
+        "plan_id": "P-PAYPALPLANID456",
+        "start_time": "2024-01-15T10:00:00Z",
+        "quantity": "1",
+        "subscriber": {
+            "email_address": "subscriber@example.com",
+            "payer_id": "PAYERID789"
+        },
+        "status": "ACTIVE",
+        "billing_info": {
+            "next_billing_time": "2024-02-15T10:00:00Z"
+        }
+    }
+}

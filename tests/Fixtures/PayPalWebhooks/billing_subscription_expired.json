@@ -1,0 +1,18 @@
+{
+    "id": "EVT-SAMPLE-EXPIRED",
+    "event_version": "1.0",
+    "create_time": "2024-01-17T12:00:00Z",
+    "resource_type": "subscription",
+    "event_type": "BILLING.SUBSCRIPTION.EXPIRED",
+    "summary": "Subscription expired",
+    "resource": {
+        "id": "I-PAYPALSUBID789",
+        "plan_id": "P-PAYPALPLANIDABC",
+        "status": "EXPIRED",
+        "status_update_time": "2024-01-17T11:55:00Z",
+        "subscriber": {
+            "email_address": "subscriber@example.com",
+            "payer_id": "PAYERID123"
+        }
+    }
+}
