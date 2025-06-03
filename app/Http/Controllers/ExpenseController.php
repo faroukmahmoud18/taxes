@@ -1,18 +1,15 @@
 <?php
 
 namespace App\Http\Controllers;
+
+// Deduplicated use statements
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Carbon;
-use Illuminate\Http\Request;
-
 use App\Models\Expense;
 use App\Http\Requests\StoreExpenseRequest;
 use App\Http\Requests\UpdateExpenseRequest;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage; 
 use Illuminate\Support\Str; 
 
@@ -21,25 +18,7 @@ class ExpenseController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
-
-    // REPORT_METHOD_ADDED_MARKER
-    public function report(\Illuminate\Http\Request $request)
-    {
-        $user = \Illuminate\Support\Facades\Auth::user();
-        $period = $request->input('period', 'current_month'); 
-        $startDate = null;
-        $endDate = \Illuminate\Support\Carbon::now()->endOfDay();
-
-        $this->prepareReportDates($request, $startDate, $endDate, $period);
-
-        $expensesQuery = $user->expenses();
-        if ($startDate) {
-            $expensesQuery->whereBetween('expense_date', [$startDate, $endDate]);
-        } elseif ($period !== 'all_time') { 
-             $startDate = \Illuminate\Support\Carbon::now()->startOfMonth();
-             $endDate = \Illuminate\Support\Carbon::now()->endOfMonth();
-             $expensesQuery->whereBetween('expense_date', [$startDate, $endDate]);
-             $period = 'current_month';
+    }
 
     // REPORT_METHOD_ADDED_MARKER_V2
     public function report(\Illuminate\Http\Request $request)
@@ -120,95 +99,18 @@ class ExpenseController extends Controller
                 $endDate = \Illuminate\Support\Carbon::now()->endOfYear();
                 break;
             case 'all_time':
-            default: 
                 $startDate = null; 
-                $endDate = \Illuminate\Support\Carbon::now()->endOfDay(); 
-                if ($period !== 'all_time' && $period !== 'custom') { // If an invalid period or failed custom
-                    $startDate = \Illuminate\Support\Carbon::now()->startOfMonth();
-                    $endDate = \Illuminate\Support\Carbon::now()->endOfMonth();
-                    $period = 'current_month';
-                } else if ($period === 'all_time') {
-                     // $startDate is already null for all_time
-                }
-                // if period is 'custom' but failed validation, it will behave like all_time or get reset by default switch.
+                $endDate = \Illuminate\Support\Carbon::now()->endOfDay();
+                // $period is already 'all_time'
                 break;
-        }
-    }
-        }
-        
-        $expensesForPeriod = $expensesQuery->orderBy('expense_date', 'desc')->get();
-
-        $totalExpenses = $expensesForPeriod->sum('amount');
-        
-        $expensesByCategory = $expensesForPeriod->groupBy('category')
-            ->map(function ($group) {
-                return $group->sum('amount');
-            })->sortDesc();
-
-        $businessExpensesTotal = $expensesForPeriod->where('is_business_expense', true)->sum('amount');
-        $privateExpensesTotal = $expensesForPeriod->where('is_business_expense', false)->sum('amount');
-        
-        $customStartDateInput = $request->input('custom_start_date', $startDate ? $startDate->format('Y-m-d') : '');
-        $customEndDateInput = $request->input('custom_end_date', $endDate ? $endDate->format('Y-m-d') : '');
-
-        return view('expenses.report', compact(
-            'expensesForPeriod', // Pass the actual expenses too for detailed view if needed
-            'totalExpenses',
-            'expensesByCategory',
-            'businessExpensesTotal',
-            'privateExpensesTotal',
-            'period',
-            'customStartDateInput',
-            'customEndDateInput'
-        ));
-    }
-    
-    private function prepareReportDates(\Illuminate\Http\Request $request, &$startDate, &$endDate, &$period)
-    {
-        if($request->filled('custom_start_date') && $request->filled('custom_end_date')) {
-            try {
-                $customStart = \Illuminate\Support\Carbon::parse($request->input('custom_start_date'))->startOfDay();
-                $customEnd = \Illuminate\Support\Carbon::parse($request->input('custom_end_date'))->endOfDay();
-
-                if ($customStart->isValid() && $customEnd->isValid() && $customStart->lte($customEnd)) {
-                    $startDate = $customStart;
-                    $endDate = $customEnd;
-                    $period = 'custom';
-                    return;
-                }
-            } catch (\Exception $e) {
-                 \Illuminate\Support\Facades\Log::warning('Invalid custom date format for expense report: ' . $e->getMessage());
-            }
-        }
-
-        switch ($period) {
-            case 'current_month':
+            default: // Handles 'custom' with invalid dates, or any other invalid period string
                 $startDate = \Illuminate\Support\Carbon::now()->startOfMonth();
                 $endDate = \Illuminate\Support\Carbon::now()->endOfMonth();
-                break;
-            case 'last_month':
-                $startDate = \Illuminate\Support\Carbon::now()->subMonthNoOverflow()->startOfMonth();
-                $endDate = \Illuminate\Support\Carbon::now()->subMonthNoOverflow()->endOfMonth();
-                break;
-            case 'current_year':
-                $startDate = \Illuminate\Support\Carbon::now()->startOfYear();
-                $endDate = \Illuminate\Support\Carbon::now()->endOfYear();
-                break;
-            case 'all_time':
-            default: 
-                $startDate = null; 
-                $endDate = \Illuminate\Support\Carbon::now()->endOfDay(); 
-                if ($period !== 'all_time') { // If an invalid period was passed, default to current_month
-                    $startDate = \Illuminate\Support\Carbon::now()->startOfMonth();
-                    $endDate = \Illuminate\Support\Carbon::now()->endOfMonth();
-                    $period = 'current_month';
-                } else {
-                     $period = 'all_time';
-                }
+                $period = 'current_month';
                 break;
         }
     }
-    }
+    // Removed duplicated/malformed code block that was here.
 
     public function index()
     {
