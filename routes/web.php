@@ -18,18 +18,20 @@ Route::middleware('auth')->group(function () {
 
 require __DIR__.'/auth.php';
 
-// Admin Routes for Subscription Plans
+// Admin Routes
 use App\Http\Controllers\Admin\SubscriptionPlanController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController; // Added for Admin Dashboard
+use App\Http\Controllers\Admin\StaticPageController;
+use App\Http\Controllers\Admin\TaxConfigurationController;
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
-    Route::resource('subscription-plans', SubscriptionPlanController::class);
+    Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard'); // New dashboard route
+    Route::resource('subscription-plans', SubscriptionPlanController::class); // Consolidated
+    Route::resource('static-pages', StaticPageController::class)->parameters(['static-pages' => 'staticPage:slug']); // Consolidated
+    Route::get('tax-configuration', [TaxConfigurationController::class, 'index'])->name('tax-configuration.index'); // Consolidated
+    Route::post('tax-configuration/clear-cache', [TaxConfigurationController::class, 'clearConfigCache'])->name('tax-configuration.clear-cache'); // Consolidated
 });
-
-// ADMIN SUBSCRIPTION PLAN ROUTES START
-Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
-    Route::resource('subscription-plans', SubscriptionPlanController::class);
-});
-// ADMIN SUBSCRIPTION PLAN ROUTES END
+// Removed duplicated and misplaced admin route blocks
 
 // USER SUBSCRIPTION ROUTES START
 use App\Http\Controllers\SubscriptionController;
@@ -46,19 +48,6 @@ Route::middleware(['auth'])->prefix('subscriptions')->name('subscriptions.')->gr
 use App\Http\Controllers\PayPalWebhookController;
 Route::post('/paypal/webhook', [PayPalWebhookController::class, 'handle'])->name('paypal.webhook');
 // PAYPAL WEBHOOK ROUTE END
-
-// ADMIN STATIC PAGES ROUTES START
-use App\Http\Controllers\Admin\StaticPageController; // Ensure this is not duplicated if already present
-use App\Http\Controllers\Admin\TaxConfigurationController;
-
-Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
-    Route::resource('static-pages', StaticPageController::class)->parameters(['static-pages' => 'staticPage:slug']);
-});
-// ADMIN STATIC PAGES ROUTES END
-// ADMIN TAX CONFIGURATION ROUTE START
-    Route::get('tax-configuration', [TaxConfigurationController::class, 'index'])->name('tax-configuration.index');
-    Route::post('tax-configuration/clear-cache', [TaxConfigurationController::class, 'clearConfigCache'])->name('tax-configuration.clear-cache');
-// ADMIN TAX CONFIGURATION ROUTE END
 
 // FRONTEND STATIC PAGE ROUTE START
 use App\Http\Controllers\PageController; // Ensure this is not duplicated if already present globally or in another block
