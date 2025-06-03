@@ -105,4 +105,64 @@ class DashboardTest extends TestCase
         // Also check that total this month is 0.00
         $response->assertSeeText(__('Total This Month:') . ' €' . number_format(0, 2));
     }
+
+    public function test_dashboard_displays_details_for_active_subscription_including_status_and_manage_link(): void
+    {
+        $user = User::factory()->create();
+        $plan = SubscriptionPlan::factory()->create(['name' => ['en' => 'Gold Active Plan']]);
+        $activeSubscription = UserSubscription::factory()->for($user)->for($plan)->create([
+            'status' => 'active',
+            'ends_at' => Carbon::now()->addMonth(),
+        ]);
+
+        $response = $this->actingAs($user)->get(route('dashboard'));
+
+        $response->assertStatus(200);
+        $response->assertSeeText('Gold Active Plan');
+        // Note: assertSeeText will escape HTML, so we search for the text content.
+        // If precise HTML structure with tags is needed, a different assertion or DOM crawler might be better.
+        // For capitalize, CSS handles it, source is 'active'.
+        $response->assertSee(__('Status:') . ' <span class="font-semibold capitalize">active</span>', false);
+        $response->assertSeeText(__('Next Billing Date:') . ' ' . $activeSubscription->ends_at->toFormattedDateString(), false);
+        $response->assertSee(route('subscriptions.index')); // Assuming "Manage Subscription" links here
+        $response->assertSeeText(__('Manage Subscription'));
+    }
+
+    // REVISED test_dashboard_displays_details_for_cancelled_subscription_that_is_not_yet_expired
+    public function test_dashboard_shows_no_active_subscription_for_cancelled_but_future_ends_at_subscription(): void
+    {
+        $user = User::factory()->create();
+        $plan = SubscriptionPlan::factory()->create(['name' => ['en' => 'Cancelled Plan Future End']]);
+        UserSubscription::factory()->for($user)->for($plan)->create([
+            'status' => 'cancelled', // Not 'active'
+            'ends_at' => Carbon::now()->addDays(15),
+            'cancelled_at' => Carbon::now()->subDay(),
+        ]);
+
+        $response = $this->actingAs($user)->get(route('dashboard'));
+
+        $response->assertStatus(200);
+        $response->assertSeeText(__('You are not currently subscribed to any plan.'));
+        $response->assertSeeText(__('View Plans'));
+        $response->assertDontSeeText('Cancelled Plan Future End');
+    }
+
+    public function test_dashboard_displays_message_for_expired_subscription_as_no_active_subscription(): void
+    {
+        // This scenario should effectively be like having no active subscription,
+        // as DashboardController fetches the *active* one.
+        $user = User::factory()->create();
+        $plan = SubscriptionPlan::factory()->create(['name' => ['en' => 'Old Expired Plan']]);
+        UserSubscription::factory()->for($user)->for($plan)->create([
+            'status' => 'expired',
+            'ends_at' => Carbon::now()->subDays(1), // Expired yesterday
+        ]);
+
+        $response = $this->actingAs($user)->get(route('dashboard'));
+
+        $response->assertStatus(200);
+        $response->assertSeeText(__('You are not currently subscribed to any plan.'));
+        $response->assertSeeText(__('View Plans'));
+        $response->assertDontSeeText('Old Expired Plan'); // Should not show details of the expired plan
+    }
 }
