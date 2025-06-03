@@ -1,15 +1,14 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\DashboardController; // Added DashboardController
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -77,9 +76,9 @@ Route::middleware(['auth'])->prefix('expenses')->name('expenses.')->group(functi
     Route::get('/{expense}/edit', [ExpenseController::class, 'edit'])->name('edit');
     Route::put('/{expense}', [ExpenseController::class, 'update'])->name('update');
     Route::delete('/{expense}', [ExpenseController::class, 'destroy'])->name('destroy');
-});
+    // Define the expenses.report route INSIDE the group
     Route::get('/report', [ExpenseController::class, 'report'])->name('report');
-// EXPENSE REPORT ROUTE
+});
 // USER EXPENSE MANAGEMENT ROUTES END
 
 // TAX ESTIMATION ROUTES START
