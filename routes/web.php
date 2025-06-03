@@ -5,8 +5,8 @@ use App\Http\Controllers\DashboardController; // Added DashboardController
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('welcome');
-});
+    return view('landing');
+})->name('landing'); // Optional: name the route
 
 Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
 
