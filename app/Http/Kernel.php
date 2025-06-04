@@ -50,7 +50,7 @@ class Kernel extends HttpKernel
      *
      * @var array<string, class-string|string>
      */
-    protected $routeMiddleware = [
+    protected $middlewareAliases = [ // Renamed from $routeMiddleware
         'admin' => \App\Http\Middleware\IsAdmin::class,
         'auth' => \App\Http\Middleware\Authenticate::class,
         // 'auth.session' => \Illuminate\Session\Middleware\AuthenticateSession::class,

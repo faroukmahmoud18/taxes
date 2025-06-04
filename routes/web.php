@@ -24,7 +24,7 @@ use App\Http\Controllers\Admin\DashboardController as AdminDashboardController; 
 use App\Http\Controllers\Admin\StaticPageController;
 use App\Http\Controllers\Admin\TaxConfigurationController;
 
-Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', \App\Http\Middleware\IsAdmin::class])->prefix('admin')->name('admin.')->group(function () { // Using FQCN for IsAdmin
     Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard'); // New dashboard route
     Route::resource('subscription-plans', SubscriptionPlanController::class); // Consolidated
     Route::resource('static-pages', StaticPageController::class)->parameters(['static-pages' => 'staticPage:slug']); // Consolidated

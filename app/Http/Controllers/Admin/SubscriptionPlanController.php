@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\SubscriptionPlan;
+use Illuminate\Support\Facades\Log; // Added Log facade
 // Remove: use Illuminate\Http\Request;
 // Remove: use Illuminate\Support\Facades\Validator;
 use App\Http\Requests\Admin\StoreSubscriptionPlanRequest; // Added
@@ -76,6 +77,7 @@ class SubscriptionPlanController extends Controller
     public function update(UpdateSubscriptionPlanRequest $request, SubscriptionPlan $subscriptionPlan) // Changed to Form Request
     {
         $validatedData = $request->validated();
+        // Log::debug('Validated data in update SubscriptionPlan:', $validatedData); // REMOVED DEBUG LINE
         
         $subscriptionPlan->price = $validatedData['price'];
         $subscriptionPlan->paypal_plan_id = $validatedData['paypal_plan_id'] ?? null;
@@ -84,14 +86,34 @@ class SubscriptionPlanController extends Controller
         $subscriptionPlan->setTranslation('name', 'de', $validatedData['name']['de']);
         $subscriptionPlan->setTranslation('name', 'ar', $validatedData['name']['ar']);
         
-        if (isset($validatedData['features'])) {
-            $subscriptionPlan->setTranslation('features', 'en', $validatedData['features']['en'] ?? '');
-            $subscriptionPlan->setTranslation('features', 'de', $validatedData['features']['de'] ?? '');
-            $subscriptionPlan->setTranslation('features', 'ar', $validatedData['features']['ar'] ?? '');
-        } else {
-            // If features are not present or empty, clear them for all locales
+        // Handle 'features'
+        $featuresData = $validatedData['features'] ?? []; // Default to empty array if 'features' not in validated data
+        $allSubmittedFeaturesAreEffectivelyEmpty = true;
+
+        foreach (['en', 'de', 'ar'] as $locale) {
+            $featureValue = $featuresData[$locale] ?? null;
+            // If $featuresData was initially empty (because 'features' was not in $validatedData),
+            // $featureValue will be null here for all locales.
+            // If $featuresData had locale keys, $featureValue will be that or null.
+
+            // Set the translation for the locale. An empty string will effectively clear it for that locale.
+            // If $featureValue was truly null (locale not submitted or submitted as null), it becomes empty string.
+            $subscriptionPlan->setTranslation('features', $locale, $featureValue ?? '');
+
+            if (!empty($featureValue)) { // A non-empty string for any locale means features are not "all empty"
+                $allSubmittedFeaturesAreEffectivelyEmpty = false;
+            }
+        }
+
+        if ($allSubmittedFeaturesAreEffectivelyEmpty) {
+            // If, after processing all locales, no locale had actual content
+            // (i.e., all were missing from input, or submitted as null/empty string),
+            // then clear out the entire features json attribute.
             $subscriptionPlan->forgetAllTranslations('features');
         }
+        // Note: If 'features' was not in $validatedData, $featuresData defaults to [],
+        // $featureValue will be null for all locales, $allSubmittedFeaturesAreEffectivelyEmpty will be true,
+        // and forgetAllTranslations will be called. This covers the "omitted features key" case.
 
         $subscriptionPlan->save();
 

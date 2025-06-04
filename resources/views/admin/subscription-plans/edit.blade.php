@@ -1,11 +1,22 @@
-@extends('layouts.app')
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+            {{ __('Edit Subscription Plan: ') }} {{ $subscription_plan->getTranslation('name', app()->getLocale(), false) }}
+        </h2>
+    </x-slot>
 
-@section('content')
-<div class="container">
-    <h1>Edit Subscription Plan: {{ $subscription_plan->getTranslation('name', app()->getLocale(), false) }}</h1>
-    <form method="POST" action="{{ route('admin.subscription-plans.update', $subscription_plan) }}">
-        @method('PUT')
-        @include('admin.subscription-plans._form', ['subscription_plan' => $subscription_plan])
-    </form>
-</div>
-@endsection
+    <div class="py-12">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                    <form method="POST" action="{{ route('admin.subscription-plans.update', $subscription_plan) }}">
+                        @csrf
+                        @method('PUT')
+                        @include('admin.subscription-plans._form', ['subscription_plan' => $subscription_plan])
+                        {{-- Assuming _form.blade.php includes a submit button --}}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</x-app-layout>
