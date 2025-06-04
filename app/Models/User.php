@@ -44,7 +44,8 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
-            'password', 'is_admin' => 'hashed',
+            'password' => 'hashed',
+            'is_admin' => 'boolean', // Correct cast for is_admin
         ];
     }
 
