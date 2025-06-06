@@ -11,8 +11,9 @@ use Illuminate\Support\Facades\Log; // For better logging
 use PayPal\Core\PayPalHttpClient;
 use PayPal\Core\SandboxEnvironment;
 use PayPal\Core\ProductionEnvironment;
-use PayPal\v1\Subscriptions\SubscriptionsCreateRequest; // Keeping this as it was, will be commented out
-use PayPalHttp\HttpException; // Reverting to this for now, as test also uses it.
+// use PayPal\v1\Subscriptions\SubscriptionsCreateRequest; // SDK does not have this class for this version.
+use PayPalHttp\HttpRequest; // Added for generic requests
+use PayPalHttp\HttpException;
 
 class SubscriptionController extends Controller
 {
@@ -54,39 +55,89 @@ class SubscriptionController extends Controller
              return redirect()->route('dashboard')->with('info', 'You already have an active subscription.');
         }
 
-        // $payPalRequest = new SubscriptionsCreateRequest(); // SDK does not have this class / Class not found
-        Log::critical('PayPal SDK (paypal/paypal-server-sdk:1.1.0) does not appear to have SubscriptionsCreateRequest at expected FQCN. Subscription creation logic needs rewrite for this SDK version.');
-        $mockedPayPalResponse = null; // Placeholder
-        $approvalLink = null; // Placeholder
-        $payPalRequest = new \stdClass(); // Mock request object to avoid error in execute() signature.
+        // Construct the request body for PayPal
+        $requestBody = [
+            'plan_id' => $plan->paypal_plan_id,
+            'start_time' => date('Y-m-d\TH:i:s\Z', time() + 60), // e.g., start in 1 minute
+            // 'subscriber' => [ // Optional: Not strictly needed if user logs in on PayPal side
+            //     'name' => [
+            //         'given_name' => $user->name, // Assuming user has a 'name' attribute
+            //     ],
+            //     'email_address' => $user->email,
+            // ],
+            'application_context' => [
+                'brand_name' => config('app.name', 'Laravel App'),
+                'locale' => 'en-US',
+                'shipping_preference' => 'NO_SHIPPING', // For digital goods
+                'user_action' => 'SUBSCRIBE_NOW',
+                'payment_method' => [
+                    'payer_selected' => 'PAYPAL',
+                    'payee_preferred' => 'IMMEDIATE_PAYMENT_REQUIRED',
+                ],
+                'return_url' => route('subscriptions.success'),
+                'cancel_url' => route('subscriptions.cancel'),
+            ],
+        ];
 
-        // Attempt to set body for logging/potential use by a lenient mock, though $payPalRequest is stdClass
-        // $payPalRequest->body = [ ... ]; // This was part of the old logic, not needed for stub
+        // Create a generic request for PayPal API
+        // Note: The PayPal SDK v1.1.0 might not have a specific 'SubscriptionsCreateRequest'
+        // We might need to use a generic HttpRequest or craft it carefully.
+        // The paypal/paypal-server-sdk for v1 typically uses classes like `PayPal\v1\Billing\SubscriptionsCreateRequest`
+        // but the log indicates it's missing. We will use a generic approach.
 
-        // --- BEGIN STUBBED PAYPAL INTERACTION ---
-        // Due to issues with the current PayPal SDK version (1.1.0) for creating subscriptions,
-        // we are stubbing out the actual PayPal call and simulating a successful initiation.
-        // The actual subscription creation with PayPal will not occur with this code.
+        $payPalRequest = new HttpRequest('/v1/billing/subscriptions', 'POST');
+        $payPalRequest->headers['Content-Type'] = 'application/json';
+        // $payPalRequest->headers['PayPal-Request-Id'] = 'sub-' . uniqid(); // Optional: for idempotency
+        $payPalRequest->body = $requestBody;
 
-        $fakePayPalSubscriptionId = 'stubbed_paypal_sub_' . uniqid();
-        $fakeApprovalUrl = 'https://www.paypal.com/checkoutnow?token=' . $fakePayPalSubscriptionId; // Dummy URL
+        try {
+            Log::info("Attempting to create PayPal subscription for User ID: {$user->id}, Plan ID: {$plan->id}.");
+            $response = $this->payPalClient->execute($payPalRequest);
+            $result = $response->result; // This is typically an object or array from JSON response
 
-        // Create/Update local UserSubscription record
-        UserSubscription::updateOrCreate(
-            ['user_id' => $user->id, 'status' => 'pending_approval'], // Simplified condition for stubbing
-            [
-                'subscription_plan_id' => $plan->id,
-                'paypal_subscription_id' => $fakePayPalSubscriptionId, // Use the fake ID
-                'starts_at' => now(),
-                'paypal_payload' => ['stubbed_request' => true, 'simulated_paypal_id' => $fakePayPalSubscriptionId], // Minimal payload
-                'status' => 'pending_approval', // Explicitly set status
-            ]
-        );
-        Log::info("Local subscription record created/updated for User ID: {$user->id} with STUBBED PayPal Subscription ID: {$fakePayPalSubscriptionId}. Status: pending_approval.");
+            if ($response->statusCode == 201 && isset($result->id)) {
+                $payPalSubscriptionId = $result->id;
+                $approvalLink = null;
+                if (isset($result->links)) {
+                    foreach ($result->links as $link) {
+                        if ($link->rel == 'approve') {
+                            $approvalLink = $link->href;
+                            break;
+                        }
+                    }
+                }
 
-        return redirect()->away($fakeApprovalUrl);
-        // --- END STUBBED PAYPAL INTERACTION ---
-        // Original try-catch block that calls $this->payPalClient->execute() is now replaced by the stubbed logic above.
+                if (!$approvalLink) {
+                    Log::error("PayPal subscription created (ID: {$payPalSubscriptionId}) for User ID: {$user->id}, but no approval link found in response. Response: " . json_encode($result));
+                    return redirect()->route('subscriptions.index')->with('error', 'Could not retrieve PayPal approval link. Please try again.');
+                }
+
+                // Create/Update local UserSubscription record
+                UserSubscription::updateOrCreate(
+                    ['user_id' => $user->id, 'subscription_plan_id' => $plan->id], // Find by user and plan
+                    [
+                        'paypal_subscription_id' => $payPalSubscriptionId,
+                        'status' => 'pending_approval',
+                        'starts_at' => now(), // Or parse from PayPal response if available and relevant
+                        'paypal_payload' => json_encode(['request' => $requestBody, 'response' => $result]), // Store request and response
+                    ]
+                );
+                Log::info("Local subscription record created/updated for User ID: {$user->id}. PayPal Subscription ID: {$payPalSubscriptionId}. Status: pending_approval. Redirecting to approval link.");
+                return redirect()->away($approvalLink);
+
+            } else {
+                Log::error("PayPal subscription creation failed or returned unexpected status for User ID: {$user->id}. Status: {$response->statusCode}. Response: " . json_encode($result));
+                return redirect()->route('subscriptions.index')->with('error', 'Failed to initiate PayPal subscription. Please try again.');
+            }
+
+        } catch (HttpException $e) {
+            Log::error("PayPal API HttpException for User ID: {$user->id}, Plan ID: {$plan->id} during subscription creation. Message: {$e->getMessage()}. Debug ID: {$e->getPayPalDebugId()}. Full Error: " . $e->getDebugMessage());
+            // $e->getDebugMessage() often contains the JSON response from PayPal with more details.
+            return redirect()->route('subscriptions.index')->with('error', "Error communicating with PayPal: " . $e->getMessage());
+        } catch (\Exception $e) {
+            Log::error("Generic exception for User ID: {$user->id}, Plan ID: {$plan->id} during PayPal subscription creation. Message: {$e->getMessage()} at {$e->getFile()}:{$e->getLine()}");
+            return redirect()->route('subscriptions.index')->with('error', 'An unexpected error occurred while setting up your subscription. Please try again later.');
+        }
     }
 
     public function success(Request $request)

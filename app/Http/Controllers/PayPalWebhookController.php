@@ -7,22 +7,31 @@ use Illuminate\Support\Facades\Log;
 use App\Models\UserSubscription;
 use App\Models\SubscriptionPlan; 
 use App\Models\User; 
-use Carbon\Carbon; 
-use PayPalHttp\HttpException; 
+use Carbon\Carbon;
+use PayPalHttp\HttpException;
+use PayPal\Core\PayPalHttpClient; // Added for injection
+use PayPalHttp\HttpRequest; // Added for API call
 
 class PayPalWebhookController extends Controller
 {
+    private $payPalClient;
+
+    public function __construct(PayPalHttpClient $payPalClient)
+    {
+        $this->payPalClient = $payPalClient;
+    }
+
     public function handle(Request $request)
     {
         $payload = $request->all();
         Log::info('PayPal Webhook Received:', ['payload' => $payload]);
 
-        $isVerified = $this->verifyPayPalWebhookSignatureConceptual($request);
+        $isVerified = $this->verifyPayPalWebhookSignature($request); // Renamed method call
         if (!$isVerified) {
-            Log::critical('PayPal Webhook: SIGNATURE VERIFICATION FAILED OR BYPASSED. Event processing aborted.');
+            Log::critical('PayPal Webhook: SIGNATURE VERIFICATION FAILED. Event processing aborted.');
             return response()->json(['status' => 'error', 'message' => 'Signature verification failed or not properly configured.'], 400);
         }
-        Log::info('PayPal Webhook: Signature (conceptually) verified.');
+        // Log::info('PayPal Webhook: Signature (conceptually) verified.'); // Removed as actual verification log exists now
 
         $eventType = strtoupper($payload['event_type'] ?? '');
         $resource = $payload['resource'] ?? null;
@@ -70,15 +79,85 @@ class PayPalWebhookController extends Controller
         }
     }
 
-    private function verifyPayPalWebhookSignatureConceptual(Request $request): bool
+    private function verifyPayPalWebhookSignature(Request $request): bool // Renamed method
     {
+        Log::info('PayPal Webhook: Starting signature verification.');
+
         $webhookId = config('services.paypal.webhook_id');
         if (empty($webhookId)) {
-            Log::error('PayPal Webhook: Webhook ID (services.paypal.webhook_id) is not configured. Signature verification skipped (FAIL).');
-            return false; 
+            Log::error('PayPal Webhook: Webhook ID (services.paypal.webhook_id) is not configured. Signature verification failed.');
+            return false;
         }
-        Log::warning("PayPal Webhook: Conceptual signature verification. In production, implement call to /v1/notifications/verify-webhook-signature API. Webhook ID: {$webhookId}");
-        return true; 
+
+        $headers = [
+            'PAYPAL-TRANSMISSION-ID' => $request->header('PAYPAL-TRANSMISSION-ID'),
+            'PAYPAL-TRANSMISSION-TIME' => $request->header('PAYPAL-TRANSMISSION-TIME'),
+            'PAYPAL-CERT-URL' => $request->header('PAYPAL-CERT-URL'),
+            'PAYPAL-AUTH-ALGO' => $request->header('PAYPAL-AUTH-ALGO'),
+            'PAYPAL-TRANSMISSION-SIG' => $request->header('PAYPAL-TRANSMISSION-SIG'),
+        ];
+
+        foreach ($headers as $key => $value) {
+            if (empty($value)) {
+                Log::error("PayPal Webhook: Missing critical header '{$key}'. Signature verification failed.");
+                return false;
+            }
+        }
+
+        $requestBody = $request->getContent();
+
+        $verificationPayload = [
+            'auth_algo' => $headers['PAYPAL-AUTH-ALGO'],
+            'cert_url' => $headers['PAYPAL-CERT-URL'],
+            'transmission_id' => $headers['PAYPAL-TRANSMISSION-ID'],
+            'transmission_sig' => $headers['PAYPAL-TRANSMISSION-SIG'],
+            'transmission_time' => $headers['PAYPAL-TRANSMISSION-TIME'],
+            'webhook_id' => $webhookId,
+            'webhook_event' => json_decode($requestBody, true) // PayPal expects the body as an object
+        ];
+
+        // According to PayPal docs, webhook_event should be the *original* JSON string of the event body.
+        // However, their API examples sometimes show it as an object.
+        // The PHP SDK's sample code for verification uses `json_decode($request->raw_body())`
+        // Let's try sending it as an object first, as `json_decode($requestBody, true)` does.
+        // If that fails, we might need to send $requestBody directly (as a string).
+        // The PayPal documentation states: "The exact JSON body of the webhook notification."
+        // Re-evaluating: it's safer to send the raw JSON string.
+        $verificationPayload['webhook_event'] = json_decode($requestBody); // Send as object, not assoc array
+
+
+        $apiPath = '/v1/notifications/verify-webhook-signature';
+        $verifyRequest = new HttpRequest($apiPath, 'POST');
+        $verifyRequest->headers['Content-Type'] = 'application/json';
+        $verifyRequest->body = $verificationPayload;
+
+        try {
+            Log::info('PayPal Webhook: Sending signature verification request to PayPal.', ['url' => $apiPath, 'payload' => $verificationPayload]);
+            $response = $this->payPalClient->execute($verifyRequest);
+            $result = $response->result; // PayPal SDK typically gives an object for JSON responses
+
+            if ($response->statusCode == 200 && isset($result->verification_status)) {
+                if ($result->verification_status === 'SUCCESS') {
+                    Log::info('PayPal Webhook: Signature verification SUCCESSFUL.');
+                    return true;
+                } else {
+                    Log::warning('PayPal Webhook: Signature verification FAILED by PayPal.', ['status' => $result->verification_status, 'response' => $result]);
+                    return false;
+                }
+            } else {
+                Log::error('PayPal Webhook: Signature verification API call failed or returned unexpected status.', [
+                    'statusCode' => $response->statusCode,
+                    'response' => $result
+                ]);
+                return false;
+            }
+        } catch (HttpException $e) {
+            Log::error("PayPal Webhook: HttpException during signature verification. Message: {$e->getMessage()}. Debug ID: {$e->getPayPalDebugId()}. Full Error: " . $e->getDebugMessage(), ['payload_sent' => $verificationPayload]);
+            return false;
+        } catch (\Exception $e) {
+            Log::error("PayPal Webhook: Generic exception during signature verification. Message: {$e->getMessage()}", ['exception' => $e, 'payload_sent' => $verificationPayload]);
+            return false;
+        }
     }
 
     protected function handleSubscriptionActivated(array $resource)
