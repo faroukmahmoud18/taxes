@@ -17,7 +17,7 @@ Route::middleware('auth')->group(function () {
 });
 
 require __DIR__.'/auth.php';
-//test
+//test2
 // Admin Routes
 use App\Http\Controllers\Admin\SubscriptionPlanController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController; // Added for Admin Dashboard
