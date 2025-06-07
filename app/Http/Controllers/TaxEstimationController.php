@@ -48,44 +48,43 @@ class TaxEstimationController extends Controller
             'marital_status' => 'required|in:single,married_joint',
             'is_church_member' => 'sometimes|boolean',
             'expense_period_year' => 'required|digits:4|integer|min:2000|max:'.(now()->year + 5), // Allow few future years
+            'state_abbreviation' => 'nullable|string|alpha|size:2', // Added state_abbreviation
         ]);
 
         $user = Auth::user();
         $annualGrossIncome = (float)$validated['annual_gross_income'];
         $maritalStatus = $validated['marital_status'];
-        $isChurchMember = $request->boolean('is_church_member');
+        $isChurchMember = $request->boolean('is_church_member'); // boolean helper correctly gets value even if not in $validated
         $expenseYear = $validated['expense_period_year'];
+        $stateAbbreviation = $validated['state_abbreviation'] ?? null;
 
         $totalBusinessExpenses = $user->expenses()
             ->where('is_business_expense', true)
             ->whereYear('expense_date', $expenseYear)
             ->sum('amount');
             
-        $annualTaxableIncome = $annualGrossIncome - $totalBusinessExpenses;
-        $annualTaxableIncome = max(0, $annualTaxableIncome); 
+        // Note: The TaxService calculates its own taxableIncome (zve) based on gross income and business expenses.
+        // The $annualTaxableIncome variable here is just for intermediate clarity if needed, but not directly passed if service recalculates.
+        // However, TaxService expects annualGrossIncome and totalBusinessExpenses separately.
 
-        $results = $this->taxService->calculateEstimatedIncomeTax(
-            $annualTaxableIncome,
+        $serviceResults = $this->taxService->calculateGermanTax(
+            $annualGrossIncome,
+            $totalBusinessExpenses,
+            $isChurchMember,
             $maritalStatus,
-            $isChurchMember
+            $stateAbbreviation // Pass the new variable
         );
         
-        $inputsForSession = $validated;
-        $inputsForSession['is_church_member'] = $isChurchMember;
-        $inputsForSession['annual_gross_income'] = $annualGrossIncome; // ensure this is available for old() or display
+        $inputsForSession = $validated; // $validated already contains state_abbreviation if provided
+        $inputsForSession['is_church_member'] = $isChurchMember; // Ensure this is correctly captured from the request
+        // $inputsForSession['annual_gross_income'] is already in $validated as a string, which is fine for old()
 
-        $resultsForSession = $results;
-        $resultsForSession['annual_gross_income'] = $annualGrossIncome;
-        $resultsForSession['total_business_expenses_calculated'] = $totalBusinessExpenses;
-        $resultsForSession['annual_taxable_income_calculated'] = $annualTaxableIncome;
-        $resultsForSession['expense_period_year_used'] = $expenseYear;
+        // The $serviceResults now contains the full structure including its own 'inputs' and 'calculations' keys.
+        // We flash the entire $serviceResults.
 
-
-        // Instead of passing directly to view, redirect with results flashed to session
-        // This follows Post/Redirect/Get pattern and avoids issues with form resubmission on refresh
         return redirect()->route('tax-estimation.show')
-                         ->with('tax_estimation_results', $resultsForSession)
+                         ->with('tax_estimation_results', $serviceResults) // Pass the whole service result
                          ->with('tax_estimation_inputs', $inputsForSession) // To repopulate form correctly
-                         ->withInput($inputsForSession); // For old() helper
+                         ->withInput($inputsForSession); // For old() helper, ensures $validated fields are available
     }
 }

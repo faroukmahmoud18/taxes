@@ -8,7 +8,7 @@
 
 @section('content')
 <div class="container py-4">
-    <h1>{{ __('Tax Configuration (Germany') }} {{ $taxConfig['year'] ?? 'N/A' }})</h1>
+    <h1>{{ __('Tax Configuration (Germany)') }} {{ is_array($taxConfig) && isset($taxConfig['year']) ? $taxConfig['year'] : '' }}</h1>
 
     @if (session('success'))
         <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -39,6 +39,20 @@
         </div>
     </div>
 
+    <!-- New Raw Configuration Display -->
+    <div class="card mb-4">
+        <div class="card-header">{{ __('Loaded Tax Configuration (Raw Data)') }}</div>
+        <div class="card-body">
+            <p>{{ __('The following data is loaded from config/tax_rates.php under the "germany" key.') }}</p>
+            @if (!empty($taxConfig) && is_array($taxConfig))
+                <pre style="white-space: pre-wrap; word-wrap: break-word; background-color: #f8f9fa; border: 1px solid #dee2e6; padding: 15px; border-radius: 0.25rem;"><code>{{ json_encode($taxConfig, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</code></pre>
+            @else
+                <p class="text-danger">{{ __('No tax configuration data found or the structure is empty/invalid.') }}</p>
+            @endif
+        </div>
+    </div>
+
+    {{--
     <div class="card mb-4">
         <div class="card-header">{{ __('Income Tax Brackets (Single Filer Basis)') }}</div>
         <div class="card-body">
@@ -127,5 +141,6 @@
             @endif
         </div>
     </div>
+    --}}
 </div>
 @endsection
