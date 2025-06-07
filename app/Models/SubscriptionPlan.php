@@ -14,5 +14,10 @@ class SubscriptionPlan extends Model
     use SoftDeletes;
 
     public $translatable = ['name', 'features'];
-    protected $fillable = ['name', 'price', 'features', 'paypal_plan_id'];
+    protected $fillable = ['name', 'price', 'features', 'paypal_plan_id']; // Not adding new feature columns yet as their migration failed
+
+    public function userSubscriptions()
+    {
+        return $this->hasMany(UserSubscription::class);
+    }
 }
