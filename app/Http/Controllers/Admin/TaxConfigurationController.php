@@ -20,15 +20,8 @@ class TaxConfigurationController extends Controller
     {
         $taxConfig = Config::get('tax_rates.germany', []); // Provide default empty array
         
-        // Ensure default structure if parts are missing to avoid errors in view
-        $taxConfig['year'] = $taxConfig['year'] ?? 'N/A';
-        $taxConfig['income_tax'] = $taxConfig['income_tax'] ?? [];
-        $taxConfig['income_tax']['single'] = $taxConfig['income_tax']['single'] ?? ['brackets' => []]; // Use 'single_brackets' as per config file
-        $taxConfig['income_tax']['single_brackets'] = $taxConfig['income_tax']['single_brackets'] ?? []; // Corrected key
-        $taxConfig['income_tax']['solidarity_surcharge'] = $taxConfig['income_tax']['solidarity_surcharge'] ?? [];
-        $taxConfig['income_tax']['church_tax'] = $taxConfig['income_tax']['church_tax'] ?? [];
-        $taxConfig['vat'] = $taxConfig['vat'] ?? [];
-        $taxConfig['social_security'] = $taxConfig['social_security'] ?? [];
+        // Default structure lines removed as the new config/tax_rates.php has a different structure.
+        // The view will be updated to display the raw new structure.
         
         return view('admin.tax-configuration.index', compact('taxConfig'));
     }

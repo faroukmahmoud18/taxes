@@ -52,14 +52,28 @@
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
-                            <div class="col-md-6 mb-3 d-flex align-items-center pt-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="is_church_member" id="is_church_member" value="1" {{ (old('is_church_member', $inputs['is_church_member'] ?? false)) ? 'checked' : '' }}>
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check mt-md-4 pt-md-2"> {{-- Adjusted top padding for medium screens and up --}}
+                                    <input class="form-check-input @error('is_church_member') is-invalid @enderror" type="checkbox" value="1" id="is_church_member" name="is_church_member" {{ old('is_church_member', $inputs['is_church_member'] ?? false) ? 'checked' : '' }}>
                                     <label class="form-check-label" for="is_church_member">
                                         {{ __('Are you a church member (subject to church tax)?') }}
                                     </label>
+                                    @error('is_church_member')
+                                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                                    @enderror
                                 </div>
                             </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="state_abbreviation" class="form-label">{{ __('Your State (Bundesland - 2-letter abbreviation for Church Tax)') }}</label>
+                                <input type="text" class="form-control @error('state_abbreviation') is-invalid @enderror" id="state_abbreviation" name="state_abbreviation" value="{{ old('state_abbreviation', $inputs['state_abbreviation'] ?? '') }}" placeholder="E.g., BY, NW, BE (optional)">
+                                @error('state_abbreviation')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                                <small class="form-text text-muted">{{ __('Relevant for church tax calculation if you are a member. E.g., BY for Bavaria (8%), others usually 9%.') }}</small>
+                            </div>
+                            {{-- You can add another field here in col-md-6 if needed or leave it for spacing --}}
                         </div>
                         <button type="submit" class="btn btn-primary">{{ __('Calculate Estimated Tax') }}</button>
                     </form>
@@ -67,47 +81,59 @@
             </div>
 
             @if (session('tax_estimation_results'))
-                @php $results = session('tax_estimation_results'); @endphp
+                @php $calcResults = session('tax_estimation_results'); @endphp
                 <div class="card shadow-sm p-4">
                     <h2>{{ __('Estimated Tax Calculation Results') }}</h2>
-                     <p class="text-muted">{{__('For year')}}: {{ $results['expense_period_year_used'] ?? $currentYear }}</p>
-                    <table class="table">
-                        <tbody>
-                            <tr>
-                                <td>{{ __('Your Annual Gross Income:') }}</td>
-                                <td class="text-end">€{{ number_format($results['annual_gross_income'], 2, ',', '.') }}</td>
-                            </tr>
-                            <tr>
-                                <td>{{ __('Total Business Expenses (') }}{{ $results['expense_period_year_used'] ?? $currentYear }}{{ __('):') }}</td>
-                                <td class="text-end">- €{{ number_format($results['total_business_expenses_calculated'], 2, ',', '.') }}</td>
-                            </tr>
-                            <tr class="fw-bold">
-                                <td>{{ __('Estimated Annual Taxable Income:') }}</td>
-                                <td class="text-end">€{{ number_format($results['annual_taxable_income_calculated'], 2, ',', '.') }}</td>
-                            </tr>
-                            <tr><td colspan="2">&nbsp;</td></tr>
-                            <tr>
-                                <td>{{ __('Calculated Income Tax (Lohnsteuer/Einkommensteuer):') }}</td>
-                                <td class="text-end">€{{ number_format($results['income_tax'], 2, ',', '.') }}</td>
-                            </tr>
-                            <tr>
-                                <td>{{ __('Solidarity Surcharge (Solidaritätszuschlag):') }}</td>
-                                <td class="text-end">€{{ number_format($results['solidarity_surcharge'], 2, ',', '.') }}</td>
-                            </tr>
-                            <tr>
-                                <td>{{ __('Church Tax (Kirchensteuer):') }}</td>
-                                <td class="text-end">€{{ number_format($results['church_tax'], 2, ',', '.') }}</td>
-                            </tr>
-                            <tr class="fw-bold table-primary">
-                                <td>{{ __('Total Estimated Annual Tax:') }}</td>
-                                <td class="text-end">€{{ number_format($results['total_tax'], 2, ',', '.') }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    @if (isset($results['error']))
-                         <div class="alert alert-danger mt-3">{{ $results['error'] }}</div>
+                     <p class="text-muted">{{__('For year')}}: {{ $calcResults['year'] ?? 'N/A' }}</p>
+
+                    @if (isset($calcResults['error']))
+                         <div class="alert alert-danger mt-3">{{ $calcResults['error'] }}</div>
+                    @else
+                        <h5>{{ __('Inputs Used:') }}</h5>
+                        <table class="table table-sm table-borderless mb-3">
+                            <tbody>
+                                <tr><td style="width: 60%;">{{ __('Your Annual Gross Income:') }}</td><td class="text-end">€{{ number_format($calcResults['inputs']['annualGrossIncome'] ?? 0, 2, ',', '.') }}</td></tr>
+                                <tr><td>{{ __('Total Business Expenses (') }}{{ $calcResults['inputs']['expense_period_year'] ?? $calcResults['year'] }}{{ __('):') }}</td><td class="text-end">- €{{ number_format($calcResults['inputs']['totalBusinessExpenses'] ?? 0, 2, ',', '.') }}</td></tr>
+                                <tr><td>{{ __('Marital Status:') }}</td><td class="text-end">{{ __(ucfirst(str_replace('_', ' ', $calcResults['inputs']['maritalStatus'] ?? 'single'))) }}</td></tr>
+                                <tr><td>{{ __('Church Member:') }}</td><td class="text-end">{{ ($calcResults['inputs']['isChurchMember'] ?? false) ? __('Yes') : __('No') }}</td></tr>
+                                @if(!empty($calcResults['inputs']['stateAbbreviation']))
+                                    <tr><td>{{ __('State Abbreviation for Church Tax:') }}</td><td class="text-end">{{ strtoupper($calcResults['inputs']['stateAbbreviation']) }}</td></tr>
+                                @endif
+                            </tbody>
+                        </table>
+
+                        <hr>
+                        <h5>{{ __('Estimated Taxes:') }}</h5>
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr class="fw-bold">
+                                    <td>{{ __('Estimated Annual Taxable Income (zvE):') }}</td>
+                                    <td class="text-end">€{{ number_format($calcResults['calculations']['taxableIncomeZvE'] ?? 0, 2, ',', '.') }}</td>
+                                </tr>
+                                <tr><td colspan="2">&nbsp;</td></tr>
+                                <tr>
+                                    <td>{{ __('Calculated Income Tax (Lohnsteuer/Einkommensteuer):') }}</td>
+                                    <td class="text-end">€{{ number_format($calcResults['calculations']['incomeTax'] ?? 0, 2, ',', '.') }}</td>
+                                </tr>
+                                <tr>
+                                    <td>{{ __('Solidarity Surcharge (Solidaritätszuschlag):') }}</td>
+                                    <td class="text-end">€{{ number_format($calcResults['calculations']['solidaritySurcharge'] ?? 0, 2, ',', '.') }}</td>
+                                </tr>
+                                <tr>
+                                    <td>{{ __('Church Tax (Kirchensteuer):') }}</td>
+                                    <td class="text-end">€{{ number_format($calcResults['calculations']['churchTax'] ?? 0, 2, ',', '.') }}</td>
+                                </tr>
+                                <tr class="fw-bold table-primary">
+                                    <td>{{ __('Total Estimated Annual Tax:') }}</td>
+                                    <td class="text-end">€{{ number_format($calcResults['calculations']['totalTaxLiability'] ?? 0, 2, ',', '.') }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     @endif
-                    <small class="text-muted mt-3">{{ __('Note: This estimation is based on the simplified tax brackets and rules configured for') }} {{ config('tax_rates.germany.year') }}. {{ __('It does not include all possible deductions, allowances, or social security contributions.') }}</small>
+                    <small class="text-muted mt-3 d-block">
+                        {{ __('Note: This estimation is based on the tax formulas and parameters configured for the year') }} {{ $calcResults['year'] ?? config('tax_rates.germany.year', 'N/A') }}.
+                        {{ __('It does not include all possible deductions or social security contributions. For precise calculations and advice, please consult a qualified tax advisor.') }}
+                    </small>
                 </div>
             @endif
         </div>
