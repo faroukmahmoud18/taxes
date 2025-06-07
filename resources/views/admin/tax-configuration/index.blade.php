@@ -39,18 +39,198 @@
         </div>
     </div>
 
-    <!-- New Raw Configuration Display -->
-    <div class="card mb-4">
-        <div class="card-header">{{ __('Loaded Tax Configuration (Raw Data)') }}</div>
-        <div class="card-body">
-            <p>{{ __('The following data is loaded from config/tax_rates.php under the "germany" key.') }}</p>
-            @if (!empty($taxConfig) && is_array($taxConfig))
-                <pre style="white-space: pre-wrap; word-wrap: break-word; background-color: #f8f9fa; border: 1px solid #dee2e6; padding: 15px; border-radius: 0.25rem;"><code>{{ json_encode($taxConfig, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</code></pre>
-            @else
-                <p class="text-danger">{{ __('No tax configuration data found or the structure is empty/invalid.') }}</p>
-            @endif
+    @if (!empty($taxConfig) && is_array($taxConfig))
+        <!-- General Information -->
+        <div class="card mb-4">
+            <div class="card-header">{{ __('General Information') }}</div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-3">{{ __('Configuration Year') }}</dt>
+                    <dd class="col-sm-9">{{ $taxConfig['year'] ?? 'N/A' }}</dd>
+                </dl>
+            </div>
         </div>
-    </div>
+
+        <!-- Income Tax Details -->
+        <div class="card mb-4">
+            <div class="card-header">{{ __('Income Tax Details') }}</div>
+            <div class="card-body">
+                @php $incomeTaxConfig = $taxConfig['income_tax'] ?? []; @endphp
+                <dl class="row mb-3">
+                    <dt class="col-sm-3">{{ __('Basic Allowance (Grundfreibetrag)') }}</dt>
+                    <dd class="col-sm-9">€{{ number_format($incomeTaxConfig['grundfreibetrag'] ?? 0, 2, ',', '.') }}</dd>
+                </dl>
+
+                @if (!empty($incomeTaxConfig['zones']))
+                    <h4>{{ __('Income Tax Zones (Single Filer Basis)') }}</h4>
+                    @foreach ($incomeTaxConfig['zones'] as $index => $zone)
+                        <div class="mb-3 p-3 border rounded bg-light">
+                            <h5>{{ __('Zone') }} {{ $index }} <small class="text-muted"><em>({{ $zone['rate_type'] }})</em></small></h5>
+                            <dl class="row">
+                                <dt class="col-sm-4">{{ __('Applies up to ZVE') }}</dt>
+                                <dd class="col-sm-8">
+                                    @if ($zone['up_to_zve'] === PHP_INT_MAX)
+                                        {{ __('Over previous threshold') }}
+                                    @else
+                                        €{{ number_format($zone['up_to_zve'], 2, ',', '.') }}
+                                    @endif
+                                </dd>
+
+                                <dt class="col-sm-4">{{ __('Rate Type') }}</dt>
+                                <dd class="col-sm-8">{{ ucfirst(str_replace('_', ' ', $zone['rate_type'])) }}</dd>
+
+                                @if ($zone['rate_type'] === 'progressive_y')
+                                    <dt class="col-sm-4">{{ __('Y ZVE Offset') }}</dt>
+                                    <dd class="col-sm-8">€{{ number_format($zone['y_zve_offset'], 2, ',', '.') }}</dd>
+                                    <dt class="col-sm-4">{{ __('Y Denominator') }}</dt>
+                                    <dd class="col-sm-8">{{ number_format($zone['y_denominator'], 0, ',', '.') }}</dd>
+                                    <dt class="col-sm-4">{{ __('Y Factor 1 (for y²)') }}</dt>
+                                    <dd class="col-sm-8">{{ $zone['y_factor_1'] }}</dd>
+                                    <dt class="col-sm-4">{{ __('Y Factor 2 (for y)') }}</dt>
+                                    <dd class="col-sm-8">{{ $zone['y_factor_2'] }}</dd>
+                                    <dt class="col-sm-4">{{ __('Add Amount') }}</dt>
+                                    <dd class="col-sm-8">€{{ number_format($zone['add_amount'], 2, ',', '.') }}</dd>
+                                    <dt class="col-sm-4">{{ __('Formula') }}</dt>
+                                    <dd class="col-sm-8"><small><code>y = (zvE - {{ $zone['y_zve_offset'] }}) / {{ $zone['y_denominator'] }};<br>Tax = ({{ $zone['y_factor_1'] }} * y + {{ $zone['y_factor_2'] }}) * y + {{ $zone['add_amount'] }}</code></small></dd>
+                                @elseif ($zone['rate_type'] === 'linear')
+                                    <dt class="col-sm-4">{{ __('Rate') }}</dt>
+                                    <dd class="col-sm-8">{{ ($zone['rate'] * 100) }}%</dd>
+                                    <dt class="col-sm-4">{{ __('Subtract Amount') }}</dt>
+                                    <dd class="col-sm-8">€{{ number_format($zone['subtract_amount'], 2, ',', '.') }}</dd>
+                                    <dt class="col-sm-4">{{ __('Formula') }}</dt>
+                                    <dd class="col-sm-8"><small><code>Tax = zvE * {{ $zone['rate'] }} - {{ $zone['subtract_amount'] }}</code></small></dd>
+                                @elseif ($zone['rate_type'] === 'zero')
+                                     <dt class="col-sm-4">{{ __('Tax Rate') }}</dt>
+                                     <dd class="col-sm-8">0%</dd>
+                                @endif
+                            </dl>
+                        </div>
+                    @endforeach
+                    <small class="form-text text-muted">{{__('For married/joint filers (Splittingverfahren), ZVE is halved, tax calculated using single rates, then tax amount is doubled.')}}</small>
+                @else
+                    <p class="text-danger">{{ __('Income tax zone configuration not found.') }}</p>
+                @endif
+            </div>
+        </div>
+
+        <!-- Solidarity Surcharge -->
+        <div class="card mb-4">
+            <div class="card-header">{{ __('Solidarity Surcharge (Solidaritätszuschlag)') }}</div>
+            <div class="card-body">
+                @php $soliConfig = $taxConfig['solidarity_surcharge'] ?? []; @endphp
+                @if (!empty($soliConfig))
+                    <dl class="row">
+                        <dt class="col-sm-4">{{ __('Rate') }}</dt>
+                        <dd class="col-sm-8">{{ ($soliConfig['rate'] ?? 0) * 100 }}% (of calculated income tax)</dd>
+
+                        <dt class="col-sm-4">{{ __('Exemption ZVE (Single)') }}</dt>
+                        <dd class="col-sm-8">€{{ number_format($soliConfig['exemption_zve'] ?? 0, 2, ',', '.') }} (No Soli if ZVE ≤ this)</dd>
+
+                        <dt class="col-sm-4">{{ __('Milder Zone Max ZVE (Single)') }}</dt>
+                        <dd class="col-sm-8">€{{ number_format($soliConfig['milder_zone_max_zve'] ?? 0, 2, ',', '.') }} (Milder zone if ZVE > exemption and ZVE ≤ this)</dd>
+
+                        <dt class="col-sm-4">{{ __('Milder Zone Formula') }}</dt>
+                        <dd class="col-sm-8"><small><code>Soli = (IncomeTax * Rate) * (1 - ((ZVE - ExemptionZVE) / (MilderZoneMaxZVE - ExemptionZVE)))</code></small></dd>
+                        <dd class="col-sm-12"><small class="text-muted">{{__('Note: For married/joint filers, ZVE thresholds for exemption and milder zone are typically doubled.')}}</small></dd>
+                    </dl>
+                @else
+                    <p class="text-danger">{{ __('Solidarity surcharge configuration not found.') }}</p>
+                @endif
+            </div>
+        </div>
+
+        <!-- Church Tax -->
+        <div class="card mb-4">
+            <div class="card-header">{{ __('Church Tax (Kirchensteuer)') }}</div>
+            <div class="card-body">
+                @php $churchTaxConfig = $taxConfig['church_tax'] ?? []; @endphp
+                @if (!empty($churchTaxConfig))
+                    <dl class="row">
+                        <dt class="col-sm-4">{{ __('Rate (Baden-Württemberg/Bayern)') }}</dt>
+                        <dd class="col-sm-8">{{ ($churchTaxConfig['rate_baden_wuerttemberg_bayern'] ?? 0) * 100 }}%</dd>
+                        <dt class="col-sm-4">{{ __('Rate (Other States)') }}</dt>
+                        <dd class="col-sm-8">{{ ($churchTaxConfig['rate_other_states'] ?? 0) * 100 }}%</dd>
+                        <dt class="col-sm-4">{{ __('Default Rate (if state not specified)') }}</dt>
+                        <dd class="col-sm-8">{{ ($churchTaxConfig['default_rate'] ?? 0) * 100 }}%</dd>
+                        <dd class="col-sm-12"><small class="text-muted">{{__('Applied on the calculated income tax for church members.')}}</small></dd>
+                    </dl>
+                @else
+                     <p class="text-danger">{{ __('Church tax configuration not found.') }}</p>
+                @endif
+            </div>
+        </div>
+
+        <!-- Social Security Freelancer -->
+        <div class="card mb-4">
+            <div class="card-header">{{ __('Social Security Contributions (Freelancer Basis)') }}</div>
+            <div class="card-body">
+                @php $ssConfig = $taxConfig['social_security_freelancer'] ?? []; @endphp
+                @if (!empty($ssConfig))
+                    @foreach ($ssConfig as $key => $details)
+                        @if(is_array($details))
+                            <h5 class="mt-3">{{ __(Str::title(str_replace('_', ' ', $key))) }}</h5>
+                            <dl class="row">
+                                @if(isset($details['base_rate']))
+                                    <dt class="col-sm-5">{{ __('Base Rate') }}</dt>
+                                    <dd class="col-sm-7">{{ ($details['base_rate'] * 100) }}%</dd>
+                                @endif
+                                @if(isset($details['average_additional_rate']))
+                                    <dt class="col-sm-5">{{ __('Avg. Additional Rate') }}</dt>
+                                    <dd class="col-sm-7">{{ ($details['average_additional_rate'] * 100) }}% (Total: {{ ($details['base_rate'] + $details['average_additional_rate'])*100 }}%)</dd>
+                                @endif
+                                @if(isset($details['rate']))
+                                    <dt class="col-sm-5">{{ __('Rate') }}</dt>
+                                    <dd class="col-sm-7">{{ ($details['rate'] * 100) }}%</dd>
+                                @endif
+                                @if(isset($details['rate_default']))
+                                    <dt class="col-sm-5">{{ __('Default Rate') }}</dt>
+                                    <dd class="col-sm-7">{{ ($details['rate_default'] * 100) }}%</dd>
+                                @endif
+                                @if(isset($details['rate_childless_over_23']))
+                                    <dt class="col-sm-5">{{ __('Rate (Childless >23y)') }}</dt>
+                                    <dd class="col-sm-7">{{ ($details['rate_childless_over_23'] * 100) }}%</dd>
+                                @endif
+                                 @if(isset($details['income_ceiling_pa']))
+                                    <dt class="col-sm-5">{{ __('Income Ceiling (p.a.)') }}</dt>
+                                    <dd class="col-sm-7">€{{ number_format($details['income_ceiling_pa'], 0, ',', '.') }}</dd>
+                                @endif
+                                @if(isset($details['income_ceiling_pa_west']))
+                                    <dt class="col-sm-5">{{ __('Income Ceiling West (p.a.)') }}</dt>
+                                    <dd class="col-sm-7">€{{ number_format($details['income_ceiling_pa_west'], 0, ',', '.') }}</dd>
+                                @endif
+                                @if(isset($details['income_ceiling_pa_east']))
+                                    <dt class="col-sm-5">{{ __('Income Ceiling East (p.a.)') }}</dt>
+                                    <dd class="col-sm-7">€{{ number_format($details['income_ceiling_pa_east'], 0, ',', '.') }}</dd>
+                                @endif
+                            </dl>
+                        @elseif ($key === 'note_deductibility')
+                             <p class="mt-3"><small class="text-muted"><strong>{{ __('Note') }}:</strong> {{ $details }}</small></p>
+                        @endif
+                    @endforeach
+                @else
+                    <p class="text-danger">{{ __('Social security configuration for freelancers not found.') }}</p>
+                @endif
+            </div>
+        </div>
+
+        <!-- Notes -->
+        @if(!empty($taxConfig['notes']))
+        <div class="card">
+            <div class="card-header">{{ __('Configuration Notes') }}</div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    @foreach($taxConfig['notes'] as $note)
+                        <li class="list-group-item"><small>{{ $note }}</small></li>
+                    @endforeach
+                </ul>
+            </div>
+        </div>
+        @endif
+    @else
+        <div class="alert alert-danger" role="alert">
+            {{ __('Tax configuration data (config/tax_rates.php) not found or is empty/invalid.') }}
+        </div>
+    @endif
 
     {{--
     <div class="card mb-4">
